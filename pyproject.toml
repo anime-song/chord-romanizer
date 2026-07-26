@@ -1,0 +1,40 @@
+[build-system]
+requires = ["maturin>=1.9.4,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "chord_romanizer"
+version = "0.1.9"
+description = "Analyze chord progressions and convert them to Roman numeral analysis"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [{ name = "anime-song" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Rust",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+
+[project.urls]
+Repository = "https://github.com/anime-song/chord-romanizer"
+
+[tool.maturin]
+manifest-path = "chord-romanizer-py/Cargo.toml"
+python-source = "."
+module-name = "chord_romanizer._native"
+bindings = "pyo3"
+include = [
+    # Keep the path dependency buildable from the sdist without packaging the
+    # crate's local `target/` directory or other development-only artifacts.
+    { path = "chord-romanizer-rs/Cargo.toml", format = "sdist" },
+    { path = "chord-romanizer-rs/Cargo.lock", format = "sdist" },
+    { path = "chord-romanizer-rs/README.md", format = "sdist" },
+    { path = "chord-romanizer-rs/src/**/*", format = "sdist" },
+    { path = "LICENSE", format = "sdist" },
+    { path = "README.md", format = "sdist" },
+]

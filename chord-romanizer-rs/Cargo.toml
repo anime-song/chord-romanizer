@@ -1,0 +1,15 @@
+[package]
+name = "chord-romanizer"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Roman-numeral analysis of chord progressions"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/anime-song/chord-romanizer"
+
+[lib]
+name = "chord_romanizer"
+path = "src/lib.rs"
+
+[dependencies]
