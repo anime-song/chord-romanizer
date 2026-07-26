@@ -105,3 +105,27 @@ jobs:
           name: wheels-macos-${{ matrix.arch }}
           path: dist/*
           retention-days: 7
+
+  publish:
+    name: Publish to PyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows, macos]
+    runs-on: ubuntu-latest
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/chord-romanizer
+
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download all distribution artifacts
+        uses: actions/download-artifact@v6
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

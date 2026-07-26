@@ -47,12 +47,14 @@ print([result.roman for result in results])
 コードごとに調を指定することもできます。
 
 ```python
-results = romanizer.romanize_progression([
-    ("C", "C"),
-    ("F", "C"),
-    ("Dm7", "F"),
-    ("G7", "F"),
-])
+results = romanizer.romanize_progression(
+    [
+        ("C", "C"),
+        ("F", "C"),
+        ("Dm7", "F"),
+        ("G7", "F"),
+    ]
+)
 ```
 
 ## StrictV1とk-best解析
@@ -110,9 +112,7 @@ genericな半音接近より上位になるよう候補固有の遷移証拠を�
 全体調と局所調を別々の軸として返します。
 
 ```python
-results = Romanizer.strict("C").annotate_progression(
-    ["Em7-5", "Eb7", "Dm7"]
-)
+results = Romanizer.strict("C").annotate_progression(["Em7-5", "Eb7", "Dm7"])
 
 substitute = next(
     item
@@ -120,11 +120,11 @@ substitute = next(
     if item.dominant_relation == "tritone_substitute"
 )
 
-print(substitute.role)                           # dominant
-print(substitute.perspective.global_tonic)      # C
-print(substitute.perspective.local_tonic)       # D
+print(substitute.role)  # dominant
+print(substitute.perspective.global_tonic)  # C
+print(substitute.perspective.local_tonic)  # D
 print(substitute.perspective.local_tonic_degree)  # II
-print(substitute.perspective.scope)             # tonicization
+print(substitute.perspective.scope)  # tonicization
 ```
 
 したがって`IIIm7-5–VI7–IIm7`は、全体調の表記を失わずに、IIを一時主音とする
@@ -215,7 +215,7 @@ Pythonから公開するのは`Romanizer`を中心とする高水準APIです。
 
 ```python
 print(Romanizer().native_backend)
-# {'version': '0.1.9', 'abi': 'abi3-py38'}
+# {'version': '0.1.10', 'abi': 'abi3-py38'}
 ```
 
 ## wheelのCIビルド
