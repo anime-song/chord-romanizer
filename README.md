@@ -255,6 +255,7 @@ events = romanizer.annotate_events(progression)
 | `S` | subdominant |
 | `NF` | non-functional |
 | `CT` | 共通音を保持するchromatic neighbor |
+| `passdim` | 半音進行をつなぐpassing diminished |
 | `V/ii` | iiを一時主音とするdominant |
 | `V+/IV` | IVへ向かうaugmented dominant |
 | `subV/IV` | IVへ向かうtritone substitute |
@@ -266,6 +267,9 @@ events = romanizer.annotate_events(progression)
 
 `C#m7-5 → CM7`ではE、G、Bの3音を保持し、C#だけがCへ半音下行します。
 この場合はpredominantではなく共通音装飾として`C#m7-5 [#im7-5|CT]`と表示します。
+
+`Bm7 → Bb:dim7 → Am7`ではroot lineのB–Bb–Aを半音下行でつなぐため、
+`Bb:dim7 [biiidim7|passdim]`と表示します。
 
 `C → Caug/F# → FM7`では、Caugを`V+/IV`、F# bassをFへ半音下行する
 独立したapproach bassとして扱います。したがってsubVではなく、

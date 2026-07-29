@@ -238,6 +238,13 @@ fn function_label(
     }
 
     if classification
+        .families
+        .contains(&InterpretationFamily::PassingDiminished)
+    {
+        return Some("passdim".to_owned());
+    }
+
+    if classification
         .sources
         .contains(&HarmonicSource::SubdominantMinor)
     {

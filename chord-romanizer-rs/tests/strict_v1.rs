@@ -1094,6 +1094,22 @@ fn diminished_before_two_minor_retains_three_competing_meanings_in_top_k() {
 }
 
 #[test]
+fn descending_chromatic_diminished_displays_as_passing() {
+    let romanizer = Romanizer::new("G").unwrap();
+    let progression = [item("Bm7"), item("Bb:dim7"), item("Am7")];
+    let paths = romanizer.analyze_top_k_interpretations(&progression, 1);
+
+    assert!(
+        paths[0].selections[1].harmonic_classifications[0]
+            .families
+            .contains(&InterpretationFamily::PassingDiminished)
+    );
+
+    let display = romanizer.display_progression(&progression);
+    assert_eq!(display[1].combined_label, "Bb:dim7 [biiidim7|passdim]");
+}
+
+#[test]
 fn chromatic_and_common_tone_diminished_patterns_are_ranked_by_context() {
     let romanizer = Romanizer::new("C").unwrap();
 

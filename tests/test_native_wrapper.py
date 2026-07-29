@@ -263,6 +263,18 @@ def test_diminished_context_families_cross_the_native_boundary():
     )
 
 
+def test_descending_chromatic_diminished_displays_as_passing():
+    romanizer = Romanizer.strict("G")
+    progression = ["Bm7", "Bb:dim7", "Am7"]
+
+    path = romanizer.analyze_top_k_interpretations(progression, k=1)[0]
+    assert (
+        "passing_diminished"
+        in path.selections[1].harmonic_classifications[0].families
+    )
+    display = romanizer.display_progression(progression)
+    assert display[1].combined_label == "Bb:dim7 [biiidim7|passdim]"
+
 def test_quality_related_two_and_modal_ranking_cross_native_boundary():
     romanizer = Romanizer.strict("C")
 
