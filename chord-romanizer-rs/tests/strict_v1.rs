@@ -21,6 +21,45 @@ fn item(symbol: &str) -> ProgressionItem {
 }
 
 #[test]
+fn display_api_formats_the_selected_functional_path() {
+    let progression = [
+        item("Bm7"),
+        item("Eaug/A#"),
+        item("AM7"),
+        item("G#aug/D"),
+        item("C#m7"),
+        item("Am7"),
+        item("Baug/F"),
+        item("A/B"),
+        item("E/G#"),
+    ];
+    let display = Romanizer::new("E")
+        .unwrap()
+        .display_progression(&progression);
+
+    assert_eq!(
+        display
+            .iter()
+            .map(|item| item.combined_label.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "Bm7 [ii7/IV|PD]",
+            "Eaug/Bb [bV7(9,#11)|subV/IV]",
+            "AM7 [IVM7|I/IV]",
+            "G#aug/D [bVII7(9,#11)|subV/vi]",
+            "C#m7 [vi7|i/vi]",
+            "Am7 [iv7|SDm]",
+            "Baug/F [bII7(9,#11)|subV/I]",
+            "A/B [V9sus4|D]",
+            "E/G# [I6|T]",
+        ]
+    );
+    assert_eq!(display[1].function_label.as_deref(), Some("subV/IV"));
+    assert_eq!(display[1].role_label.as_deref(), Some("D"));
+    assert_eq!(display[2].local_label.as_deref(), Some("I/IV"));
+}
+
+#[test]
 fn altered_tensions_create_only_the_written_pitch_classes() {
     let parsed = chord("C7(b9,#11)");
     let formula = formula(&parsed, BehaviorProfile::StrictV1).unwrap();

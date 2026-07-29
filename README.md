@@ -2,140 +2,178 @@
 
 [![PyPI version](https://badge.fury.io/py/chord-romanizer.svg)](https://badge.fury.io/py/chord-romanizer)
 
-コード進行をローマ数字へ変換し、文脈を考慮した複数の機能解釈を返すライブラリです。
-解析エンジンはRustで実装し、Pythonパッケージは高水準APIだけを公開する薄いラッパーになっています。
-
-## 動作環境
-
-- CPython 3.8以上
-- Rust 1.85以上（ソースからビルドする場合のみ）
-- ビルド方式: PyO3 + maturin
-- Python ABI: `abi3-py38`
-
-`abi3-py38` wheelは、同じOS・CPUアーキテクチャであればCPython 3.8以降の複数バージョンから利用できます。OSとCPUアーキテクチャをまたいで同じwheelを使うことはできません。
+コード進行をローマ数字と機能ラベルへ変換するPythonライブラリです。
+調を指定した通常解析、表示・MIDIマーカー用ラベル、複数の機能解釈、調・転調推定を利用できます。
+解析本体はRustで実装されています。
 
 ## インストール
-
-公開済みwheelを利用する場合:
 
 ```bash
 python -m pip install chord-romanizer
 ```
 
-リポジトリから開発用にインストールする場合:
+Python 3.8以上に対応しています。新しく解析を始める場合は、修正版の規則を使う
+`Romanizer.strict()`を利用してください。
 
-```bash
-python -m pip install "maturin>=1.9.4,<2" pytest
-python -m maturin develop --release
-python -m pytest -q
-```
+## 3分で使う
 
-## 基本的な使い方
-
-既存Python版との互換性を保つため、通常のコンストラクタは`python019`プロファイルを使用します。
+### 1. 調を指定してローマ数字へ変換する
 
 ```python
 from chord_romanizer import Romanizer
 
-romanizer = Romanizer(default_tonic="C")
+romanizer = Romanizer.strict(default_tonic="C")
 results = romanizer.romanize_progression(["Dm7", "G7", "Cmaj7"])
 
 print([result.roman for result in results])
 # ['IIm7', 'V7', 'IM7']
 ```
 
-コードごとに調を指定することもできます。
+1コードだけなら`romanize()`を使います。
 
 ```python
-results = romanizer.romanize_progression(
-    [
-        ("C", "C"),
-        ("F", "C"),
-        ("Dm7", "F"),
-        ("G7", "F"),
-    ]
-)
+result = Romanizer.strict("G").romanize("B7/D#")
+
+print(result.roman)
+print(result.normalized_symbol)   # 表示向けスペリング
+print(result.theoretical_symbol)  # 理論スペリング
 ```
 
-## StrictV1とk-best解析
+### 2. 画面やMIDIマーカー向けのラベルを作る
 
-修正済みの規則、候補を保持する解析、Blackadderコード解釈を利用する新規コードでは`Romanizer.strict()`を推奨します。
+`display_progression()`は、進行全体で選ばれたTop-1解釈を表示用にまとめます。
+`combined_label`はそのまま画面、ログ、MIDIテキストマーカーへ渡せます。
 
 ```python
-from chord_romanizer import Romanizer
+romanizer = Romanizer.strict("E")
+display = romanizer.display_progression(
+    ["Bm7", "Eaug/A#", "AM7", "G#aug/D", "C#m7"]
+)
 
-romanizer = Romanizer.strict(default_tonic="B")
-paths = romanizer.analyze_top_k_interpretations(["Daug/C", "B"], k=3)
+for item in display:
+    print(item.combined_label)
+```
+
+```text
+Bm7 [ii7/IV|PD]
+Eaug/Bb [bV7(9,#11)|subV/IV]
+AM7 [IVM7|I/IV]
+G#aug/D [bVII7(9,#11)|subV/vi]
+C#m7 [vi7|i/vi]
+```
+
+入力位置と対応させる場合は`event_index`を使います。
+
+```python
+markers = {
+    item.event_index: item.combined_label
+    for item in romanizer.display_progression(progression)
+}
+```
+
+`AnalysisDisplay`の主なフィールドは次のとおりです。
+
+| フィールド | 用途 | 例 |
+| --- | --- | --- |
+| `combined_label` | 完成済み表示 | `Eaug/Bb [bV7(9,#11)\|subV/IV]` |
+| `symbol` | 表示向けコード名 | `Eaug/Bb` |
+| `theoretical_symbol` | 理論上のスペリング | `Eaug/Bb` |
+| `global_label` | 全体調から見た度数 | `bV7(9,#11)` |
+| `local_label` | 一時的な調での度数 | `ii7/IV`, `I/IV` |
+| `function_label` | 機能 | `subV/IV`, `SDm`, `D` |
+| `role_label` | 大分類 | `T`, `PD`, `D`, `S`, `NF` |
+| `analysis_label` | 角括弧内だけの表示 | `bV7(9,#11)\|subV/IV` |
+| `event_index` | 元の進行での位置 | `1` |
+
+### 3. 必要なAPIを選ぶ
+
+| やりたいこと | API |
+| --- | --- |
+| 1コードを解析する | `romanize()` |
+| コード列をローマ数字へ変換する | `romanize_progression()` |
+| 詳細な解析結果を得る | `annotate_progression()` |
+| 表示・MIDI用ラベルを得る | `display_progression()` |
+| N.C.や境界を含めて入力位置を保つ | `annotate_events()` |
+| 機能的に異なる候補を比較する | `analyze_top_k_interpretations()` |
+| 調・転調・機能をまとめて推定する | `analyze_keys_and_functions()` |
+
+## コード表記を表示用と保存用に分ける
+
+`annotate_progression()`の結果では、コード表記を次のように使い分けます。
+
+- `normalized_symbol`: 画面やMIDI表示向け
+- `theoretical_symbol`: 理論表記の保存向け
+- `symbol_fixed`: `normalized_symbol`と同じ値を返す互換フィールド
+- `chord.original_symbol`: 入力された表記
+
+`simplify_accidentals=True`では、複重変化記号を表示しやすい異名同音へ置き換えます。
+理論表記は失われません。
+
+```python
+romanizer = Romanizer.strict("Db", simplify_accidentals=True)
+item = romanizer.display_progression(["A"])[0]
+
+print(item.symbol)              # A
+print(item.theoretical_symbol)  # Bbb
+print(item.global_label)        # bVI
+```
+
+理論表記を保存して画面だけ簡略化する場合は、同じ結果の
+`theoretical_symbol`と`symbol`をそれぞれ保存・表示へ割り当てます。
+
+## 詳細な解析結果を使う
+
+`annotate_progression()`は、表示文字列へまとめる前の結果を返します。
+
+```python
+results = Romanizer.strict("C").annotate_progression(
+    ["Em7-5", "Eb7", "Dm7"]
+)
+
+for result in results:
+    print(result.normalized_symbol, result.roman)
+    for classification in result.harmonic_classifications:
+        print(
+            classification.role,
+            classification.dominant_relation,
+            classification.perspective,
+        )
+```
+
+代表的なフィールド:
+
+- `roman`: 基本のローマ数字
+- `alter`: 文脈から得た拡張度数表記
+- `normalized_symbol`, `theoretical_symbol`: コードスペリング
+- `harmonic_classifications`: 役割、dominant関係、借用元、局所調
+- `functional_interpretations`: Blackadderを含むコード機能候補
+
+## 複数の解釈を比較する
+
+単一の表示結果ではなく、曖昧性を残して確認したい場合に使います。
+
+```python
+romanizer = Romanizer.strict("B")
+paths = romanizer.analyze_top_k_interpretations(
+    ["Daug/C", "B"],
+    k=3,
+)
 
 for path in paths:
-    print(path.total_score)
+    print("score:", path.total_score)
     for selection in path.selections:
-        print(selection.label, selection.blackadder)
+        print(selection.event_index, selection.label, selection.blackadder)
 ```
 
-`analyze_top_k_interpretations` は和声的に異なる候補だけを返す高水準APIです。
-異名同音の度数表記、増三和音の対称な回転表記、slash bassを省いただけの
-表示は候補数を消費しません。進行格子の低水準パスを直接取得する場合は
-`analyze_top_k`を使用します。
+`paths[0]`が最上位です。`display_progression()`も同じTop-1経路を使うため、
+画面の機能ラベルと解析で選ばれた候補が食い違いません。
 
-Blackadderの増三和音部分は、入力表記を`written_upper_root`へ保持したまま、
-bassのtritone上を`canonical_upper_root`として一意に表示します。たとえば
-`G#aug/F#`、`Eaug/F#`、`Caug/F#`はいずれもcanonical shapeが`Caug/F#`です。
-意味候補を増やさず、元の綴りは解釈の証拠として利用できます。
+通常は`analyze_top_k_interpretations()`を使用してください。
+表記だけ異なる候補も含む低水準の経路が必要な場合に限り`analyze_top_k()`を使います。
 
-`analyze_top_k`は単一の正解に固定せず、進行全体として自然な解釈をスコア順に返します。各`AnalysisPath`には次が含まれます。
+## 調や転調も推定する
 
-- `selections`: 各イベントで選んだ候補
-- `total_score`: パス全体のスコア
-- `evidence`: 加点・減点した規則と説明
-- `blackadder`: 裏コード型、サブドミナント型などの構造・機能解釈
-
-将来MIDIから得る調性・ボイシング・声部進行などをスコアリングへ加えられるよう、候補生成と経路選択は分離しています。
-
-完全減七では異名同音の回転表記を別候補として水増しせず、和声的に異なる意味を
-候補化します。たとえばC majorの`I -> Idim7 -> IIm7`は、
-`rootless_dominant_ninth`、`passing_diminished`、`tonic_substitute`を
-小さなtop-kで比較できます。`bIIIdim7 -> V`もwritten rootだけで除外せず、
-対称音集合から`vii°7/V`とrootless `II7(b9)`の両方を検討します。
-`I -> Idim7 -> I`には`common_tone_diminished`と
-`auxiliary_diminished`を付けます。解決先にはmajor/minor qualityを要求するため、
-`G7 -> Cdim`の`Cdim`をtonic targetとして扱いません。
-
-裏コードでは`bVIm7 -> bII7 -> I`をrelated ii–subV–Iとして候補化します。
-また、`bVII7`のmodal、subdominant-minor、backdoor候補を分離し、
-`bVI -> V`ではSDm候補、plain `bII -> I`ではNeapolitan/Phrygian候補が
-genericな半音接近より上位になるよう候補固有の遷移証拠を使用します。
-
-### 機能・借用元・局所調の分類
-
-`harmonic_classifications`では、和声的役割、dominantの解決関係、借用元、
-全体調と局所調を別々の軸として返します。
-
-```python
-results = Romanizer.strict("C").annotate_progression(["Em7-5", "Eb7", "Dm7"])
-
-substitute = next(
-    item
-    for item in results[1].harmonic_classifications
-    if item.dominant_relation == "tritone_substitute"
-)
-
-print(substitute.role)  # dominant
-print(substitute.perspective.global_tonic)  # C
-print(substitute.perspective.local_tonic)  # D
-print(substitute.perspective.local_tonic_degree)  # II
-print(substitute.perspective.scope)  # tonicization
-```
-
-したがって`IIIm7-5–VI7–IIm7`は、全体調の表記を失わずに、IIを一時主音とする
-`iiø–V–i`として分類できます。通常のV、裏コード、バックドアは同じ
-`dominant_relation`軸を使用し、SDmなどの借用元とは同時に保持できます。
-
-### Global key・転調・ピボット
-
-高水準APIはglobal keyと機能候補を同時に順位付けし、確認終止のある別調区間を
-modulation候補として返します。短い副属終止を転調へ強制せず、tonicizationの
-読みもTop-kに残します。
+調が既知なら`global_key`を指定します。
 
 ```python
 paths = Romanizer.strict().analyze_keys_and_functions(
@@ -145,101 +183,99 @@ paths = Romanizer.strict().analyze_keys_and_functions(
     k=5,
 )
 
-for span in paths[0].modulations:
-    print(span.from_key, span.to_key, span.mechanism, span.pivot)
+best = paths[0]
+for selection in best.selections:
+    print(selection.event_index, selection.active_key, selection.scope)
+
+for span in best.modulations:
+    print(span.from_key, "->", span.to_key, span.mechanism)
 ```
 
-`diatonic_pivot`、`chromatic_pivot`、`dominant_bridge`、
-`dominant_sequence`、`direct_dominant`を区別します。各イベントの
-`active_key`、`scope`、`is_pivot`、`is_modulation_confirmation`は
-解釈ツリーにも渡るため、UIで転調枝を選択して後続を再計算できます。
-複数回の転調と原調復帰も`from_key → to_key`の区間列として返します。
-
-### 長期和声記憶
-
-高水準key/function APIは、選択済みのactive keyに加えて最大2段の未解決
-dominant目標を保持します。たとえば`D7 → Am7 → G`では、介在する`Am7`を
-越えてD7のG目標を追跡します。
+調も不明な場合は`global_key`を省略します。
 
 ```python
-path = Romanizer.strict().analyze_keys_and_functions(
-    ["C", "D7", "Am7", "G", "C"],
-    global_key="C",
-    global_mode="major",
-    k=5,
-)[0]
-
-print(path.selections[1].pending_resolutions)
-print(path.harmonic_resolutions)
-print(path.memory_score)
+paths = Romanizer.strict().analyze_keys_and_functions(
+    ["Dm7", "G7", "Cmaj7"],
+    k=3,
+)
+print(paths[0].global_key)
 ```
 
-各ツリーノードにも`key_region_age_chords`、`pending_resolutions`、
-`resolved_resolution_sources`が渡るため、UIは「どの期待がどこで解決したか」を
-線やbadgeで表示できます。通常の隣接V–Iは既存transitionと二重加点しません。
+詳しい転調判定は[`docs/MODULATION.md`](docs/MODULATION.md)、
+長い範囲にまたがるdominant解決は
+[`docs/HARMONIC_MEMORY.md`](docs/HARMONIC_MEMORY.md)を参照してください。
 
-`pending_predominant`と`cadential_spans`は、介在和音を含む
-`Predominant → Dominant → Resolution`を3点の区間として返します。
-secondary deceptive候補は`deceptive_arrival`として目標を閉じるため、
-正しい代理解決が未解決ペナルティを受けることはありません。
-詳細は[`docs/HARMONIC_MEMORY.md`](docs/HARMONIC_MEMORY.md)を参照してください。
-詳しい判定基準と現時点の限界は
-[`docs/MODULATION.md`](docs/MODULATION.md)を参照してください。
+## コードごとに調を指定する
 
-## N.C.と文脈境界
+`(コード, 調)`のタプルを渡します。
 
-用途に合わせて2種類のAPIを用意しています。
+```python
+results = Romanizer.strict("C").romanize_progression(
+    [
+        ("C", "C"),
+        ("F", "C"),
+        ("Dm7", "F"),
+        ("G7", "F"),
+    ]
+)
+```
+
+調の指定が変わる位置は、StrictV1では既定で文脈の境界になります。
+
+## N.C.とセクション境界を扱う
 
 ```python
 from chord_romanizer import Boundary, Romanizer
 
-progression = ["Dm7", "N.C.", Boundary("long silence"), "G7"]
+progression = ["Dm7", "N.C.", Boundary("chorus"), "G7"]
 romanizer = Romanizer.strict("C")
 
-# コード結果だけが必要な従来型API。N.C.と境界は出力から除外される。
-chords_only = romanizer.annotate_progression(progression)
+# コードだけを返す。N.C.と境界は省略する。
+chords = romanizer.annotate_progression(progression)
 
-# 入力位置を保つAPI。N.C.と境界もイベントとして返る。
-aligned = romanizer.annotate_events(progression)
+# 入力と同じ長さで返す。N.C.と境界も確認できる。
+events = romanizer.annotate_events(progression)
 ```
 
-`N.C.`は休符表現として扱い、それだけでは前後の文脈を切りません。長い空白やセクション変更など、明示的に文脈を切る必要がある箇所へ`Boundary`を置きます。
+`N.C.`は短い休符として扱い、前後の和声文脈を接続します。
+長い空白、セクション変更などで文脈を切る場合は`Boundary`を置きます。
+`display_progression()`はN.C.と境界を省略しますが、各結果の`event_index`は
+元の入力位置を保持します。
 
-## Python APIの境界
+## 機能ラベルの読み方
 
-Pythonから公開するのは`Romanizer`を中心とする高水準APIです。Rustの内部構造を大量の`PyClass`として公開せず、ネイティブ拡張との境界は内部JSONに限定しています。このため、Rust側の候補表現やスコアリング実装を変更してもPython公開APIへの影響を抑えられます。
+| 表記 | 意味 |
+| --- | --- |
+| `T` | tonic |
+| `PD` | predominant |
+| `D` | dominant |
+| `S` | subdominant |
+| `NF` | non-functional |
+| `V/ii` | iiを一時主音とするdominant |
+| `subV/IV` | IVへ向かうtritone substitute |
+| `I/IV`, `i/vi` | 一時的な調でのtonic |
+| `SDm` | subdominant minor由来 |
 
-互換性のため、`ChordParser`、`ParsedChord`、`ChordInterpreter`も引き続きimportできます。ただし`Romanizer`による調性・機能・進行の解析判断はRust側で行われます。
+`Bm7 [ii7/IV|PD]`のように`|`がある場合、左側が具体的な度数、
+右側が機能または役割です。
 
-ネイティブバックエンドは次のように確認できます。
+## StrictV1と旧バージョン互換
+
+新規コードでは次を使います。
 
 ```python
-print(Romanizer().native_backend)
-# {'version': '0.1.12', 'abi': 'abi3-py38'}
+romanizer = Romanizer.strict(default_tonic="C")
 ```
 
-## wheelのCIビルド
+`Romanizer(default_tonic="C")`は、Python 0.1.9の出力を再現する
+`python019`プロファイルです。既存結果との互換性が必要な場合だけ利用してください。
 
-`.github/workflows/wheels.yml`はpull request、`main`/`master`へのpush、`v*`タグ、手動実行で次をビルドします。
+## 開発用インストール
 
-| OS | アーキテクチャ | 成果物 |
-| --- | --- | --- |
-| Linux | x86_64 | manylinux2014 `cp38-abi3` wheel + sdist |
-| Windows | x86_64 | `cp38-abi3` wheel |
-| macOS | Intel x86_64 | `cp38-abi3` wheel |
-| macOS | Apple Silicon arm64 | `cp38-abi3` wheel |
-
-各jobはwheelをインストールし、ソースツリー外へコピーしたテストを実行します。これにより、ローカルのPythonファイルではなく、実際にwheelへ収録されたネイティブ拡張が読み込まれることを確認します。workflowは成果物をGitHub Actions artifactへ保存しますが、PyPIへの公開は行いません。
-
-## ディレクトリ構成
-
-```text
-chord_romanizer/       Python公開APIと互換データ型
-chord-romanizer-py/    PyO3による非公開ネイティブbinding
-chord-romanizer-rs/    Rust解析エンジン
-docs/                   設計文書と調査資料
-tests/                  Python APIテスト
-.github/workflows/      wheelビルドCI
+```bash
+python -m pip install "maturin>=1.9.4,<2" pytest
+python -m maturin develop --release
+python -m pytest -q
 ```
 
 Rust側だけを検証する場合:
@@ -248,6 +284,16 @@ Rust側だけを検証する場合:
 cargo test --manifest-path chord-romanizer-rs/Cargo.toml
 cargo test --manifest-path chord-romanizer-py/Cargo.toml
 ```
+
+Rust APIの使用例は
+[`chord-romanizer-rs/README.md`](chord-romanizer-rs/README.md)を参照してください。
+解析器の設計や詳細な判定規則は[`docs/`](docs/)にあります。
+
+## 動作環境
+
+- CPython 3.8以上
+- Rust 1.85以上（ソースからビルドする場合のみ）
+- Python wheel: PyO3 / `abi3-py38`
 
 ## ライセンス
 

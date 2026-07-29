@@ -1,4 +1,5 @@
 from .romanizer import (
+    AnalysisDisplay,
     AnalysisPath,
     BlackadderInterpretation,
     Boundary,
@@ -30,6 +31,7 @@ from .chord_interpreter import ChordInterpreter, HybridAnalysis, HybridKind
 __all__ = [
     "Romanizer",
     "RomanizedChord",
+    "AnalysisDisplay",
     "AnalysisPath",
     "PathSelection",
     "ScoreEvidence",

@@ -13,6 +13,37 @@ def test_python_api_reports_abi3_native_backend():
     assert backend["abi"] == "abi3-py38"
 
 
+def test_display_progression_returns_ready_and_structured_labels():
+    display = Romanizer.strict("E").display_progression(
+        [
+            "Bm7",
+            "Eaug/A#",
+            "AM7",
+            "G#aug/D",
+            "C#m7",
+            "Am7",
+            "Baug/F",
+            "A/B",
+            "E/G#",
+        ]
+    )
+
+    assert [item.combined_label for item in display] == [
+        "Bm7 [ii7/IV|PD]",
+        "Eaug/Bb [bV7(9,#11)|subV/IV]",
+        "AM7 [IVM7|I/IV]",
+        "G#aug/D [bVII7(9,#11)|subV/vi]",
+        "C#m7 [vi7|i/vi]",
+        "Am7 [iv7|SDm]",
+        "Baug/F [bII7(9,#11)|subV/I]",
+        "A/B [V9sus4|D]",
+        "E/G# [I6|T]",
+    ]
+    assert display[1].symbol == "Eaug/Bb"
+    assert display[1].theoretical_symbol == "Eaug/Bb"
+    assert display[1].function_label == "subV/IV"
+
+
 def test_default_profile_preserves_python_019_surface():
     romanizer = Romanizer("C")
     results = romanizer.romanize_progression(["Dm7", "G7", "Cmaj7"])
@@ -77,6 +108,11 @@ def test_aligned_api_keeps_no_chord_and_explicit_boundary():
     assert len(events) == 4
     assert events[1]["kind"] == "no_chord"
     assert events[2]["kind"] == "boundary"
+
+    display = Romanizer.strict("C").display_progression(
+        ["Dm7", no_chord, Boundary("long silence"), "G7"]
+    )
+    assert [item.event_index for item in display] == [0, 3]
 
 
 def test_applied_minor_cadence_exposes_local_tonal_perspective():

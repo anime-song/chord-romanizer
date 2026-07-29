@@ -29,6 +29,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## 表示用API
+
+`display_progression`は、Top-1の機能解釈と正規化済みコード綴りを
+表示向けにまとめます。完成済みの`combined_label`に加え、
+`global_label`、`local_label`、`function_label`、`role_label`を個別に返します。
+
+```rust
+let display = romanizer.display_progression(&progression);
+for item in display {
+    println!("{}", item.combined_label);
+}
+```
+
+N.C.と境界は出力から省きますが、`event_index`は元の入力位置を保持します。
+
 ## N.C.と二つの出力API
 
 Strict V1では`N.C.`を短い休符として扱い、既定では前後の文脈を接続します。

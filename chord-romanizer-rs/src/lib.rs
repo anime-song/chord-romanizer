@@ -24,6 +24,7 @@
 //! ```
 
 pub mod analysis;
+mod display;
 pub mod domain;
 pub mod error;
 mod notation;
@@ -63,6 +64,7 @@ pub use analysis::{
     TonalKey, TonalMode, TonalPerspective, TonalScope, TreeCondition, TritoneSpelling,
     WholeToneCollection,
 };
+pub use display::AnalysisDisplay;
 pub use domain::{
     ChordDegree, ChordQuality, Degree, DegreeModifier, ModifierKind, NoteLetter, ParsedChord,
     ParsedSymbol, PitchClass, ProgressionItem, QualityClass, RomanDegree, SeventhQuality,

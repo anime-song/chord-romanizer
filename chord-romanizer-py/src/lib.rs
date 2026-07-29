@@ -10,16 +10,16 @@
 //! - adding fields to a Rust result does not require a graph of Python classes.
 
 use chord_romanizer::{
-    AlternateKind, AnalysisPath, AnnotatedEvent, BlackadderFunction, BlackadderInterpretation,
-    BlackadderObservationKind, BlackadderOrigin, BlackadderScale, BlackadderStructure,
-    CadentialSpan, CandidateConstraint, DominantRelation, GlobalKeyRequest, HarmonicClassification,
-    HarmonicResolution, HarmonicResolutionKind, HarmonicRole, HarmonicSource, HybridKind,
-    InterpretationFamily, InterpretationTree, InterpretationTreeNode, InterpretationTreeOptions,
-    KeyAnalysisOptions, KeyTreeRoot, KeyedAnalysisPath, ModulationCadence, ModulationMechanism,
-    ModulationSpan, PendingPredominant, PendingResolution, PivotKind, ProgressionItem,
-    RomanizedChord, Romanizer, RomanizerOptions, ScoreEvidence, SlashClassification, SpelledNote,
-    TonalKey, TonalMode, TonalScope, TreeCondition, TritoneSpelling, WholeToneCollection,
-    parse_chord,
+    AlternateKind, AnalysisDisplay, AnalysisPath, AnnotatedEvent, BlackadderFunction,
+    BlackadderInterpretation, BlackadderObservationKind, BlackadderOrigin, BlackadderScale,
+    BlackadderStructure, CadentialSpan, CandidateConstraint, DominantRelation, GlobalKeyRequest,
+    HarmonicClassification, HarmonicResolution, HarmonicResolutionKind, HarmonicRole,
+    HarmonicSource, HybridKind, InterpretationFamily, InterpretationTree, InterpretationTreeNode,
+    InterpretationTreeOptions, KeyAnalysisOptions, KeyTreeRoot, KeyedAnalysisPath,
+    ModulationCadence, ModulationMechanism, ModulationSpan, PendingPredominant, PendingResolution,
+    PivotKind, ProgressionItem, RomanizedChord, Romanizer, RomanizerOptions, ScoreEvidence,
+    SlashClassification, SpelledNote, TonalKey, TonalMode, TonalScope, TreeCondition,
+    TritoneSpelling, WholeToneCollection, parse_chord,
 };
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -110,6 +110,23 @@ fn annotate_events_json(
         items_json,
         true,
     )
+}
+
+#[pyfunction]
+fn display_progression_json(
+    default_tonic: &str,
+    simplify_accidentals: bool,
+    behavior: &str,
+    items_json: &str,
+) -> PyResult<String> {
+    let romanizer = create_romanizer(default_tonic, simplify_accidentals, behavior)?;
+    let items = parse_items(items_json)?;
+    let values = romanizer
+        .display_progression(&items)
+        .iter()
+        .map(analysis_display_value)
+        .collect::<Vec<_>>();
+    serde_json::to_string(&values).map_err(json_error)
 }
 
 #[pyfunction]
@@ -374,6 +391,20 @@ fn romanized_chord_value(event_index: usize, result: &RomanizedChord) -> Value {
         "is_ii_v_start": result.is_ii_v_start,
         "is_resolution_target": result.is_resolution_target,
         "resolution_type": result.resolution_type.map(|resolution| resolution.as_str()),
+    })
+}
+
+fn analysis_display_value(display: &AnalysisDisplay) -> Value {
+    json!({
+        "event_index": display.event_index,
+        "symbol": display.symbol,
+        "theoretical_symbol": display.theoretical_symbol,
+        "global_label": display.global_label,
+        "local_label": display.local_label,
+        "function_label": display.function_label,
+        "role_label": display.role_label,
+        "analysis_label": display.analysis_label,
+        "combined_label": display.combined_label,
     })
 }
 
@@ -902,6 +933,7 @@ fn json_error(error: serde_json::Error) -> PyErr {
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(annotate_progression_json, module)?)?;
     module.add_function(wrap_pyfunction!(annotate_events_json, module)?)?;
+    module.add_function(wrap_pyfunction!(display_progression_json, module)?)?;
     module.add_function(wrap_pyfunction!(analyze_top_k_json, module)?)?;
     module.add_function(wrap_pyfunction!(
         analyze_top_k_interpretations_json,
@@ -925,6 +957,16 @@ mod tests {
         let value: Value = serde_json::from_str(&output).unwrap();
         assert_eq!(value[0]["roman"], "bIIIaug/bII");
         assert!(value[0]["functional_interpretations"].is_array());
+    }
+
+    #[test]
+    fn display_json_exposes_ready_and_structured_labels() {
+        let input = r#"[{"symbol":"Bm7"},{"symbol":"Eaug/A#"},{"symbol":"AM7"}]"#;
+        let output = display_progression_json("E", false, "strict_v1", input).unwrap();
+        let value: Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(value[0]["combined_label"], "Bm7 [ii7/IV|PD]");
+        assert_eq!(value[1]["function_label"], "subV/IV");
+        assert_eq!(value[2]["local_label"], "I/IV");
     }
 
     #[test]

@@ -409,6 +409,25 @@ class RomanizedChord:
     normalized_symbol: Optional[str] = None
 
 
+@dataclass(frozen=True)
+class AnalysisDisplay:
+    """Reader-facing projection of the selected 1-best harmonic path.
+
+    ``combined_label`` is ready for MIDI text markers.  The remaining labels
+    let a UI render the chord spelling and its theory/function separately.
+    """
+
+    event_index: int
+    symbol: str
+    theoretical_symbol: str
+    global_label: str
+    local_label: Optional[str]
+    function_label: Optional[str]
+    role_label: Optional[str]
+    analysis_label: str
+    combined_label: str
+
+
 ProgressionInput = Union[
     str,
     ParsedChord,
@@ -502,6 +521,25 @@ class Romanizer:
             else:
                 output.append(value)
         return output
+
+    def display_progression(
+        self, progression: Iterable[ProgressionInput]
+    ) -> List[AnalysisDisplay]:
+        """Return compact labels from the selected 1-best harmonic path.
+
+        Chord spelling uses ``normalized_symbol`` while
+        ``theoretical_symbol`` is retained separately. N.C. and boundaries are
+        omitted; ``event_index`` preserves each chord's input position.
+        """
+
+        normalized, _ = _normalize_progression(progression, self.default_tonic)
+        payload = _native_backend.display_progression_json(
+            self.default_tonic,
+            self.simplify_accidentals,
+            self.behavior,
+            json.dumps(normalized, ensure_ascii=False),
+        )
+        return [_analysis_display(value) for value in json.loads(payload)]
 
     def analyze_top_k(
         self, progression: Iterable[ProgressionInput], k: int = 3
@@ -811,6 +849,20 @@ def _romanized_chord(value: Dict[str, Any], chord: Optional[ParsedChord]) -> Rom
         ],
         theoretical_symbol=value["theoretical_symbol"],
         normalized_symbol=value["normalized_symbol"],
+    )
+
+
+def _analysis_display(value: Dict[str, Any]) -> AnalysisDisplay:
+    return AnalysisDisplay(
+        event_index=value["event_index"],
+        symbol=value["symbol"],
+        theoretical_symbol=value["theoretical_symbol"],
+        global_label=value["global_label"],
+        local_label=value["local_label"],
+        function_label=value["function_label"],
+        role_label=value["role_label"],
+        analysis_label=value["analysis_label"],
+        combined_label=value["combined_label"],
     )
 
 
