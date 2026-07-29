@@ -411,6 +411,32 @@ impl Romanizer {
                 }
             }
         }
+        if self.options.behavior == BehaviorProfile::StrictV1 {
+            if let Some(bass) = chord.bass {
+                for candidate in &mut hybrid_candidates {
+                    if !matches!(
+                        candidate.analysis.kind,
+                        HybridKind::SusFourNine | HybridKind::SusFourSevenFlatNine
+                    ) {
+                        continue;
+                    }
+                    let functional_bass = candidate
+                        .analysis
+                        .bass_preference
+                        .map(|prefer_sharps| {
+                            name_of_pitch_class(bass.pitch_class(), Some(prefer_sharps))
+                        })
+                        .or(paired_flat_bass)
+                        .or_else(|| self.diatonic_or_borrowed_bass(bass, tonic))
+                        .unwrap_or(bass);
+                    candidate.analysis.alter = Some(format!(
+                        "{functional_bass}{}",
+                        candidate.analysis.kind.as_str()
+                    ));
+                    candidate.analysis.effective_root = Some(functional_bass);
+                }
+            }
+        }
         // `analysis` is a convenience 1-best projection. The full candidate
         // list is moved into the result later and remains available to callers.
         let mut analysis = hybrid_candidates

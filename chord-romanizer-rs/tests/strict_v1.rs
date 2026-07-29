@@ -244,6 +244,41 @@ fn flat_root_and_slash_bass_are_spelled_as_a_pair() {
 }
 
 #[test]
+fn suspended_hybrid_uses_key_respelled_bass_for_functional_label() {
+    let romanizer = Romanizer::new("Db").unwrap();
+    let result = romanizer.annotate_progression(&[item("Ebm7/G#")]);
+    let written = romanizer.annotate_progression(&[item("Ebm7/Ab")]);
+
+    assert_eq!(result[0].symbol_fixed, "Ebm7/Ab");
+    assert_eq!(result[0].alter.as_deref(), Some("V9sus4"));
+    assert_eq!(result[0].alter, written[0].alter);
+
+    let suspended = result[0]
+        .functional_interpretations
+        .iter()
+        .find(|interpretation| interpretation.hybrid_kind == HybridKind::SusFourNine)
+        .expect("9sus4 interpretation");
+    assert_eq!(
+        suspended.effective_root,
+        Some(SpelledNote::parse("Ab").unwrap())
+    );
+    assert_eq!(suspended.label, "V9sus4");
+    assert_eq!(
+        suspended
+            .classification
+            .local_degree
+            .expect("functional degree")
+            .to_string(),
+        "V"
+    );
+
+    let display = romanizer.display_progression(&[item("Ebm7/G#")]);
+    assert_eq!(display[0].symbol, "Ebm7/Ab");
+    assert_eq!(display[0].global_label, "V9sus4");
+    assert_eq!(display[0].function_label.as_deref(), Some("D"));
+}
+
+#[test]
 fn no_chord_is_aligned_and_transparent_but_boundary_is_not() {
     let romanizer = Romanizer::new("C").unwrap();
     let transparent = [item("Dm7"), item("N.C."), item("G7")];
