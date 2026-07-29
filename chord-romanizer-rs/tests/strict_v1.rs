@@ -378,17 +378,42 @@ fn blackadder_looks_through_one_prolonging_dominant() {
             .any(|evidence| { evidence.rule_id == "builtin.progression.dominant_prolongation" })
     );
 
-    // A genuine half-diminished predominant still resolves to the immediate
-    // dominant; the bounded look-ahead must not skip it.
-    let predominant =
-        Romanizer::new("C")
-            .unwrap()
-            .annotate_progression(&[item("Daug/C"), item("G7"), item("C")]);
+    // The incomplete half-diminished reading is selected only when its bass
+    // moves up a perfect fourth to an immediate dominant: F#ø(add9) -> B7.
+    let romanizer = Romanizer::new("C").unwrap();
+    let predominant = romanizer.annotate_progression(&[item("Caug/F#"), item("B7")]);
     assert_eq!(
         predominant[0].hybrid_kind,
         Some(HybridKind::HalfDiminishedNine)
     );
-    assert_eq!(predominant[0].alter.as_deref(), Some("Im7-5(9)"));
+    assert_eq!(predominant[0].alter.as_deref(), Some("#IVm7-5(9)"));
+
+    // Dominant quality by itself is insufficient when the roots do not form
+    // iiø-V. The structural candidate remains available for inspection, but
+    // it must not become the 1-best label.
+    let unrelated = romanizer.annotate_progression(&[item("Caug/F#"), item("G7")]);
+    assert_eq!(
+        unrelated[0].hybrid_kind,
+        Some(HybridKind::SecondaryDominantThirdInBass)
+    );
+    assert_eq!(unrelated[0].alter.as_deref(), Some("II7(9,#11)/#IV"));
+    assert!(
+        unrelated[0]
+            .functional_interpretations
+            .iter()
+            .any(
+                |candidate| candidate.blackadder.as_ref().is_some_and(|reading| {
+                    reading.structure == BlackadderStructure::HalfDiminishedAddNineOmitThird
+                        && reading.function.is_none()
+                })
+            )
+    );
+
+    let isolated = romanizer.annotate_progression(&[item("Caug/F#")]);
+    assert_ne!(
+        isolated[0].hybrid_kind,
+        Some(HybridKind::HalfDiminishedNine)
+    );
 }
 
 #[test]

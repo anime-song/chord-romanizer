@@ -276,11 +276,16 @@ pub(crate) fn analyze_blackadder(
     ));
 
     // 3. Replacing the absent minor third yields the half-diminished reading.
-    // Its predominant role is only asserted when the next written chord is a
-    // dominant; otherwise the structural possibility remains functionless.
+    // Because the defining minor third is absent, the pitch set alone is weak
+    // evidence. Assert a predominant role only for the characteristic
+    // iiø(add9)-V motion: the following chord must be dominant-quality and its
+    // root must lie a perfect fourth above the Blackadder bass.
     let halfdim_target = context
         .next_chord
-        .filter(|next| structure::is_dominant_for(next, behavior))
+        .filter(|next| {
+            semitone_distance(next.root, canonical_bass) == 5
+                && structure::is_dominant_for(next, behavior)
+        })
         .map(|next| next.root);
     readings.push(scored(
         interpretation(
@@ -298,9 +303,9 @@ pub(crate) fn analyze_blackadder(
         format!("{canonical_bass}m7-5(9)"),
         root_override,
         bass_preference,
-        0.5,
+        0.0,
         "builtin.blackadder.structure.half_diminished",
-        "Blackadder core read as m7b5(add9) with the minor third omitted",
+        "Blackadder core permits an m7b5(add9) reading, but its minor third is omitted",
     ));
 
     // 4. For every Blackadder set, the note a major second over the bass can
@@ -532,7 +537,9 @@ pub(crate) fn analyze_blackadder(
         let dominant_pc = anchor_pc.offset(2);
         let dominant = spell_pitch_class(anchor.letter.shift(1), dominant_pc);
         let distance = semitone_distance(next.root, dominant);
-        if matches!(distance, 5 | 7) && structure::is_tonic_for(next, behavior) {
+        let target_supports_dominant_motion =
+            structure::is_tonic_for(next, behavior) || structure::is_dominant_for(next, behavior);
+        if distance == 5 && target_supports_dominant_motion {
             readings.push(scored(
                 interpretation(
                     canonical_bass,
@@ -633,12 +640,15 @@ pub(crate) fn transition_evidence(
             if interpretation
                 .effective_root
                 .is_some_and(|root| semitone_distance(next.root, root) == 5)
-                && structure::is_tonic_for(next, behavior) =>
+                && (structure::is_tonic_for(next, behavior)
+                    || (interpretation.structure
+                        == BlackadderStructure::RootlessDominantThirdInBass
+                        && structure::is_dominant_for(next, behavior))) =>
         {
             (
                 "builtin.blackadder.transition.dominant",
                 6.0,
-                "Dominant interpretation resolves upward by perfect fourth",
+                "Dominant interpretation moves upward by perfect fourth to its target",
             )
         }
         Some(BlackadderFunction::BackdoorDominant)
@@ -653,12 +663,13 @@ pub(crate) fn transition_evidence(
         }
         Some(BlackadderFunction::Predominant)
             if interpretation.structure == BlackadderStructure::HalfDiminishedAddNineOmitThird
+                && semitone_distance(next.root, interpretation.canonical_bass) == 5
                 && structure::is_dominant_for(next, behavior) =>
         {
             (
                 "builtin.blackadder.transition.halfdim_to_dominant",
                 5.5,
-                "Half-diminished interpretation precedes a dominant chord",
+                "Half-diminished interpretation moves up a perfect fourth to a dominant chord",
             )
         }
         Some(BlackadderFunction::SubdominantMinor)

@@ -107,6 +107,15 @@ assert!(paths[0].total_score >= paths.last().unwrap().total_score);
 
 Blackadder候補は単一ラベルに潰さず、`BlackadderInterpretation`の`structure`、`function`、`origin`へ分離しています。裏コード、通常／secondary dominant、backdoor dominant、SDm、half-diminished、aug7転回、whole-tone、増六、分離型、偶成和音型を同時に保持できます。分離型や偶成和音型など文字列だけで確定できない候補には`unresolved_observations`が残ります。
 
+`m7-5(9)`は短3度を省略した構造候補なので、pitch setだけでは1-bestにしません。
+たとえばC調では`Caug/F# → B7`を`F#m7-5(9) → B7`、
+`Faug/B → E7`を`Bm7-5(9) → E7`と解釈できます。slash bassから完全4度上の
+dominantへ直結しない場合、half-diminished候補は`functional_interpretations`に
+残りますが、表示用の最上位ラベルには採用されません。
+
+一方、`Caug/F# → G7`はrootless `D7(9,#11)/F# → G7`として扱い、
+`Caug/F# [II7(9,#11)/#IV|V/V]`と表示します。
+
 将来MIDI等から声部・音価を取得した場合は、`BlackadderObservations`へ正規化して`ChordInterpreter::analyze_slash_candidates_with_context`へ渡せます。core解析器は生のMIDI形式に依存しません。
 
 ## Strict V1の主な修正

@@ -18,7 +18,7 @@ from chord_romanizer import Romanizer
         ),
         (
             "C",
-            ["Daug/C", "G7", "C"],
+            ["Caug/F#", "B7"],
             "structure",
             "half_diminished_add_nine_omit_third",
         ),
@@ -51,6 +51,20 @@ def test_text_only_analysis_retains_observation_dependent_readings():
     assert any(reading["structure"] == "whole_tone_subset" for reading in readings)
     assert any(reading["origin"] == "split_voice_leading" for reading in readings)
     assert any(reading["origin"] == "incidental" for reading in readings)
+
+
+def test_half_diminished_reading_requires_root_related_dominant_for_top_label():
+    romanizer = Romanizer.strict("C")
+
+    f_sharp_to_b = romanizer.display_progression(["Caug/F#", "B7"])
+    b_to_e = romanizer.display_progression(["Faug/B", "E7"])
+    unrelated = romanizer.display_progression(["Caug/F#", "G7"])
+    isolated = romanizer.display_progression(["Caug/F#"])
+
+    assert f_sharp_to_b[0].combined_label == "Caug/F# [#IVm7-5(9)|PD]"
+    assert b_to_e[0].combined_label == "Faug/B [VIIm7-5(9)|PD]"
+    assert unrelated[0].combined_label == "Caug/F# [II7(9,#11)/#IV|V/V]"
+    assert "m7-5(9)" not in isolated[0].combined_label
 
 
 def test_unresolved_fallback_families_reach_semantic_top_five():
