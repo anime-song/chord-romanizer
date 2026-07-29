@@ -1458,6 +1458,24 @@ fn alternate_key_pair_is_a_real_k_best_tonal_state() {
 }
 
 #[test]
+fn alternate_key_tonic_family_preserves_its_actual_local_degree() {
+    // In global E, Am7-Bm7 can be local ii-iii in temporary G (bIII).
+    // Bm7 belongs to the broad tonic-function family there, but it is not the
+    // local tonic itself and must therefore never display as I/bIII.
+    let progression = [item("Am7"), item("Bm7"), item("CM7"), item("D")];
+    let display = Romanizer::new("E")
+        .unwrap()
+        .display_progression(&progression);
+
+    assert_eq!(display[0].combined_label, "Am7 [ii7/bIII|PD]");
+    assert_eq!(display[1].global_label, "v7");
+    assert_eq!(display[1].local_label.as_deref(), Some("iii7/bIII"));
+    assert_eq!(display[1].function_label.as_deref(), Some("iii7/bIII"));
+    assert_eq!(display[1].role_label.as_deref(), Some("T"));
+    assert_eq!(display[1].combined_label, "Bm7 [v7|iii7/bIII]");
+}
+
+#[test]
 fn k_best_can_preserve_several_temporary_key_spans() {
     // Abstract regression for a progression that successively supports
     // global ii-iii, temporary-Eb ii-iii and iv-V, then temporary-A V-bVI.

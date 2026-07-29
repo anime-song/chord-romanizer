@@ -267,6 +267,10 @@ events = romanizer.annotate_events(progression)
 `Bm7 [ii7/IV|PD]`のように`|`がある場合、左側が具体的な度数、
 右側が機能または役割です。
 
+`T`はtonic-familyという役割であり、常にIの和音という意味ではありません。
+E major上の`Am7 → Bm7 → CM7 → D`を一時的なG majorのii–iiiとして読む候補では、
+Bm7のlocal degreeを保ち、`Bm7 [v7|iii7/bIII]`と表示します。
+
 `C#m7-5 → CM7`ではE、G、Bの3音を保持し、C#だけがCへ半音下行します。
 この場合はpredominantではなく共通音装飾として`C#m7-5 [#im7-5|CT]`と表示します。
 この判定はtargetがglobal tonicでなくても成立し、G majorの

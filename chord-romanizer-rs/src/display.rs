@@ -8,7 +8,7 @@ use crate::analysis::{
     AnalysisLattice, BlackadderFunction, BlackadderStructure, HarmonicClassification, HarmonicRole,
     HarmonicSource, InterpretationFamily, PathSelection, TonalMode, TonalPerspective, TonalScope,
 };
-use crate::domain::{Degree, ParsedChord, ProgressionItem, QualityClass};
+use crate::domain::{Degree, ParsedChord, ProgressionItem, QualityClass, RomanDegree};
 use crate::interpreter::SlashClassification;
 use crate::romanizer::{AnnotatedEvent, RomanizedChord, Romanizer};
 use crate::speller::semitone_distance;
@@ -83,7 +83,7 @@ fn display_for_selection(
         .and_then(|classification| classification.role)
         .map(role_label_for)
         .map(str::to_owned);
-    let function_label = function_label(selection, classification);
+    let function_label = function_label(&result.chord, selection, classification);
 
     // An applied predominant is most legible as `ii7/IV|PD`; targets and
     // dominants retain their global label and place local function second.
@@ -183,7 +183,9 @@ fn local_label(chord: &ParsedChord, classification: &HarmonicClassification) -> 
     if perspective.scope == TonalScope::Global {
         return None;
     }
-    let local = if classification.role == Some(HarmonicRole::Tonic) {
+    let local = if classification.role == Some(HarmonicRole::Tonic)
+        && is_local_tonic_degree(classification)
+    {
         if perspective.mode == TonalMode::Minor {
             "i".to_owned()
         } else {
@@ -196,6 +198,7 @@ fn local_label(chord: &ParsedChord, classification: &HarmonicClassification) -> 
 }
 
 fn function_label(
+    chord: &ParsedChord,
     selection: Option<&PathSelection>,
     classification: Option<&HarmonicClassification>,
 ) -> Option<String> {
@@ -288,16 +291,21 @@ fn function_label(
     if classification.role == Some(HarmonicRole::Tonic) {
         if let Some(perspective) = perspective {
             if perspective.scope != TonalScope::Global {
-                let local_tonic = if perspective.mode == TonalMode::Minor {
-                    "i"
-                } else {
-                    "I"
-                };
-                return Some(format!("{local_tonic}/{}", target_degree(perspective)));
+                // `Tonic` is a broad function family, not proof that this
+                // chord is scale degree I. A local iii may prolong tonic but
+                // must remain `iii/target`, rather than being rewritten as
+                // the local tonic itself.
+                return local_label(chord, classification);
             }
         }
     }
     classification.role.map(role_label_for).map(str::to_owned)
+}
+
+fn is_local_tonic_degree(classification: &HarmonicClassification) -> bool {
+    classification
+        .local_degree
+        .is_some_and(|degree| degree.accidental == 0 && degree.degree == RomanDegree::I)
 }
 
 fn target_degree(perspective: &TonalPerspective) -> String {
