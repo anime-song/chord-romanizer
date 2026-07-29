@@ -165,6 +165,10 @@ pub(crate) fn analyze_global_context(
                 next_chord[index]
                     .and_then(|dominant| next_chord[dominant])
                     .and_then(|target| nodes[target].as_ref())
+                    // `is_ii_v_start` also describes an unresolved ii-V pair.
+                    // Its following chord must not impose an unrelated sharp/
+                    // flat preference unless the dominant actually resolves.
+                    .filter(|target| target.is_resolution_target)
             } else if node.is_dominant {
                 next_node(index, &nodes, &next_chord)
                     .filter(|next| semitone_distance(next.effective_root, node.effective_root) == 5)

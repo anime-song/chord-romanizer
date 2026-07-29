@@ -84,6 +84,35 @@ fn unknown_quality_does_not_fall_back_to_major_triad() {
 }
 
 #[test]
+fn midi_marker_colon_quality_preserves_inversion_spelling() {
+    let result = Romanizer::new("G")
+        .unwrap()
+        .annotate_progression(&[item("B:7/D#")]);
+
+    assert_eq!(
+        result[0].slash_classification,
+        SlashClassification::Inversion
+    );
+    assert_eq!(result[0].degree_bass.unwrap().to_string(), "#V");
+    assert_eq!(result[0].symbol_fixed, "B:7/D#");
+    assert_eq!(result[0].theoretical_symbol, "B:7/D#");
+}
+
+#[test]
+fn unresolved_midi_marker_two_five_does_not_respell_borrowed_minor() {
+    let result = Romanizer::new("E").unwrap().annotate_progression(&[
+        item("C:m7(9)"),
+        item("C:m7/F"),
+        item("D:sus4"),
+    ]);
+
+    assert!(result[0].is_ii_v_start);
+    assert!(!result[2].is_resolution_target);
+    assert_eq!(result[0].degree_root.to_string(), "bVI");
+    assert_eq!(result[0].symbol_fixed, "C:m7(9)");
+}
+
+#[test]
 fn normalized_symbol_is_rendered_from_the_ast() {
     let romanizer = Romanizer::new("C").unwrap();
     let lowercase = romanizer.annotate_progression(&[item("c#/g#")]);

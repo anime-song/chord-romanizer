@@ -215,7 +215,7 @@ Pythonから公開するのは`Romanizer`を中心とする高水準APIです。
 
 ```python
 print(Romanizer().native_backend)
-# {'version': '0.1.10', 'abi': 'abi3-py38'}
+# {'version': '0.1.11', 'abi': 'abi3-py38'}
 ```
 
 ## wheelのCIビルド

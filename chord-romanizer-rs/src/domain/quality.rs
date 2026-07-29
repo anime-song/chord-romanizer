@@ -113,7 +113,12 @@ impl ChordQuality {
     /// what the user wrote.
     pub fn parse(raw: &str) -> Self {
         let compact = raw.replace(' ', "");
-        let (class, seventh, implied_extensions, remainder) = parse_base(&compact);
+        // Some MIDI chord-marker formats separate the root and quality with a
+        // colon (`B:7/D#`, `C#:m7`). The colon is presentation syntax rather
+        // than part of the quality, so ignore one leading separator for
+        // analysis while retaining `raw` for lossless rendering.
+        let semantic = compact.strip_prefix(':').unwrap_or(&compact);
+        let (class, seventh, implied_extensions, remainder) = parse_base(semantic);
         let mut parsed = Self {
             raw: raw.to_owned(),
             class,
@@ -211,6 +216,7 @@ fn parse_base(compact: &str) -> ParsedBase<'_> {
             Some(SeventhQuality::Major),
             &[],
         ),
+        ("mM7", QualityClass::Minor, Some(SeventhQuality::Major), &[]),
         (
             "m7-5",
             QualityClass::HalfDiminished,
@@ -513,7 +519,10 @@ fn altered_degree(text: &str, prefix: &str) -> Option<(ChordDegree, i8, usize)> 
     while let Some(first) = rest.chars().next() {
         match first {
             '#' => alteration += 1,
-            'b' => alteration -= 1,
+            // `7-5` is a common flat-five spelling in MIDI chord markers.
+            // Treat the minus sign as an accidental only in this modifier
+            // position; the untouched raw quality remains `7-5`.
+            'b' | '-' => alteration -= 1,
             _ => break,
         }
         consumed += first.len_utf8();
@@ -567,5 +576,38 @@ mod tests {
         assert_eq!(quality.class, QualityClass::Suspended4);
         assert_eq!(quality.omissions, [ChordDegree::Fifth]);
         assert!(quality.is_fully_recognized());
+    }
+
+    #[test]
+    fn parses_midi_marker_quality_spellings_without_losing_raw_text() {
+        for raw in [
+            ":m7", ":aug", ":M7", ":m7-5", ":7", ":m7(9)", ":m", ":dim7", ":sus4", ":dim",
+            ":7(b9)", ":7(b13)", ":7(13)", ":M7(9)", ":7-5", ":6", ":7sus4", ":7(9,13)", ":m7(11)",
+            ":7(9)", ":mM7",
+        ] {
+            assert!(
+                ChordQuality::parse(raw).is_fully_recognized(),
+                "MIDI marker quality should be recognized: {raw}"
+            );
+        }
+
+        let dominant = ChordQuality::parse(":7");
+        assert_eq!(dominant.raw, ":7");
+        assert_eq!(dominant.class, QualityClass::Major);
+        assert_eq!(dominant.seventh, Some(SeventhQuality::Minor));
+        assert!(dominant.is_fully_recognized());
+
+        let flat_five = ChordQuality::parse(":7-5");
+        assert_eq!(flat_five.raw, ":7-5");
+        assert!(flat_five.modifiers.iter().any(|modifier| {
+            modifier.degree == ChordDegree::Fifth && modifier.alteration == -1
+        }));
+        assert!(flat_five.is_fully_recognized());
+
+        let minor_major = ChordQuality::parse(":mM7");
+        assert_eq!(minor_major.raw, ":mM7");
+        assert_eq!(minor_major.class, QualityClass::Minor);
+        assert_eq!(minor_major.seventh, Some(SeventhQuality::Major));
+        assert!(minor_major.is_fully_recognized());
     }
 }
