@@ -167,6 +167,17 @@ DbM7 -> CM7
 
 これは長いconstant-structure区間の確定ではなく、隣接する2イベントから得られる局所的な根音／voice-leading候補である。
 
+### Half-diminished common-tone neighbor
+
+half-diminished chordのrootが半音下行してmajor-seventh chordへ進むと、3音を保持する
+`common_tone_neighbor`候補を作る。targetはglobal tonicに限定しない。さらに同根・同品質の
+反復または転回を見通し、区間全体を同じ装飾和音として扱う。
+
+```text
+global G: C#m7b5/G -> C#m7b5 -> Cmaj7
+function:      CT          CT        IVmaj7
+```
+
 ### Suspended dominantとvoice-leading品質ゲート
 
 `Dm7/G`のようにfunctional bassから見て`{2,5,10}`を持ち3度を欠くslash chordは、
@@ -177,6 +188,8 @@ unsuspended dominantなら`suspension_to_dominant`遷移証拠を加える。
 同じ`9sus4`／`7sus4(b9)` hybridが3和音以上続き、functional rootが同方向の
 短3度周期を作る場合は、進行全体を`constant_structure`として扱う。各コードの
 局所的なdominant／modal候補は残すが、1-bestではnon-functionalな`CS`を優先する。
+系列検出後の`F#/G# -> Gb/Ab`のような正規化では、綴りではなくpitch classで
+member identityを維持する。
 
 ```text
 Eb/F -> Gb/Ab -> A/B -> C/D -> Eb/F -> G
@@ -212,6 +225,7 @@ enharmonic spellingやslash bassを省略した表示は意味候補ではない
 - `Neapolitan -> V`
 - secondary `V -> VI/bVI`
 - alternate-key pairと、同じlocal tonal stateの継続
+- constant-structure member同士の系列継続
 - suspended dominantから同rootのunsuspended dominant
 
 したがって `k=5` は内部候補を256個返す指定ではなく、異なる意味を持つ完成経路の上位5件を返す指定である。
@@ -222,6 +236,5 @@ enharmonic spellingやslash bassを省略した表示は意味候補ではない
   pair templateからlocal stateを生成し、Viterbiがその継続を選ぶ。
 - 拍節、duration、melody、bass line、voicingはまだscoreに入らない。
 - modal tonicizationと本格的なmodulationの区別は、現在は `TonalScope::Tonicization` に留める。
-- constant structureなど3コード以上のspan patternは今回の局所規則に含めない。
 
 将来MIDI等の観測が加わった場合も、候補生成とk-best選択を分離したまま、transitionまたはspan factorへ証拠を追加する。

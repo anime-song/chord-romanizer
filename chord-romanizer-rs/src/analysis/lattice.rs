@@ -21,7 +21,7 @@ use crate::profile::{KeyBoundaryPolicy, NoChordPolicy};
 use crate::romanizer::{AnnotatedEvent, ResolutionType, RomanizedChord, RomanizerOptions};
 
 /// Version of candidate identities and built-in ranking rules.
-pub const BUILTIN_RULE_SET_VERSION: &str = "builtin-strict-v14-constant-structure";
+pub const BUILTIN_RULE_SET_VERSION: &str = "builtin-strict-v15-enharmonic-planing-neighbor";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// Why a candidate exists in a layer.

@@ -56,6 +56,34 @@ fn half_diminished_tonic_neighbor_prefers_common_tone_decoration() {
     );
     let display = romanizer.display_progression(&progression);
     assert_eq!(display[0].combined_label, "C#m7-5 [#im7-5|CT]");
+
+    let g_romanizer = Romanizer::new("G").unwrap();
+    let prolonged = [item("C#:m7-5/G"), item("C#:m7-5"), item("C:M7")];
+    let prolonged_best = g_romanizer.analyze_top_k_interpretations(&prolonged, 1);
+    for selection in &prolonged_best[0].selections[..2] {
+        assert_eq!(
+            selection.harmonic_classifications[0].role,
+            Some(HarmonicRole::NonFunctional)
+        );
+        assert!(
+            selection.harmonic_classifications[0]
+                .families
+                .contains(&InterpretationFamily::CommonToneNeighbor)
+        );
+    }
+    let prolonged_labels: Vec<_> = g_romanizer
+        .display_progression(&prolonged)
+        .into_iter()
+        .map(|display| display.combined_label)
+        .collect();
+    assert_eq!(
+        prolonged_labels,
+        [
+            "C#:m7-5/G [#ivm7-5|CT]",
+            "C#:m7-5 [#ivm7-5|CT]",
+            "C:M7 [IVM7]",
+        ]
+    );
 }
 #[test]
 fn display_api_formats_the_selected_functional_path() {
@@ -1425,6 +1453,27 @@ fn minor_third_suspended_planing_prefers_constant_structure() {
             "G [I|T]",
         ]
     );
+
+    for enharmonic_middle in ["F#/G#", "Gb/G#"] {
+        let enharmonic = [
+            item("Eb/F"),
+            item(enharmonic_middle),
+            item("A/B"),
+            item("C/D"),
+            item("Eb/F"),
+            item("G"),
+        ];
+        let enharmonic_best = romanizer.analyze_top_k_interpretations(&enharmonic, 1);
+        assert!(
+            enharmonic_best[0].selections[1].harmonic_classifications[0]
+                .families
+                .contains(&InterpretationFamily::ConstantStructure)
+        );
+        assert_eq!(
+            romanizer.display_progression(&enharmonic)[1].combined_label,
+            "Gb/Ab [bII9sus4|CS]"
+        );
+    }
 
     let isolated = [item("C/D"), item("G")];
     let isolated_best = romanizer.analyze_top_k_interpretations(&isolated, 1);

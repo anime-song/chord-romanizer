@@ -575,7 +575,11 @@ impl Romanizer {
                                 .and_then(|node| node.constant_structure_member)
                                 .is_some_and(|(kind, root)| {
                                     kind == candidate.analysis.kind
-                                        && candidate.analysis.effective_root == Some(root)
+                                        && candidate.analysis.effective_root.is_some_and(
+                                            |candidate_root| {
+                                                candidate_root.pitch_class() == root.pitch_class()
+                                            },
+                                        )
                                 });
                             functional_hybrid_classification(
                                 candidate,

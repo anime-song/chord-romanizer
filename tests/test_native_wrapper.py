@@ -394,6 +394,19 @@ def test_minor_third_suspended_planing_is_constant_structure():
         "G [I|T]",
     ]
 
+    for enharmonic_middle in ["F#/G#", "Gb/G#"]:
+        enharmonic = ["Eb/F", enharmonic_middle, "A/B", "C/D", "Eb/F", "G"]
+        enharmonic_best = romanizer.analyze_top_k_interpretations(
+            enharmonic, k=1
+        )[0]
+        assert (
+            "constant_structure"
+            in enharmonic_best.selections[1].harmonic_classifications[0].families
+        )
+        assert romanizer.display_progression(enharmonic)[1].combined_label == (
+            "Gb/Ab [bII9sus4|CS]"
+        )
+
     isolated = romanizer.analyze_top_k_interpretations(["C/D", "G"], k=1)[0]
     assert all(
         "constant_structure" not in classification.families
@@ -419,6 +432,26 @@ def test_half_diminished_tonic_neighbor_is_common_tone_decoration():
     assert romanizer.display_progression(["C#m7-5", "CM7"])[0].combined_label == (
         "C#m7-5 [#im7-5|CT]"
     )
+
+    g_romanizer = Romanizer.strict("G")
+    prolonged = ["C#:m7-5/G", "C#:m7-5", "C:M7"]
+    prolonged_best = g_romanizer.analyze_top_k_interpretations(
+        prolonged, k=1
+    )[0]
+    assert all(
+        selection.harmonic_classifications[0].role == "non_functional"
+        and "common_tone_neighbor"
+        in selection.harmonic_classifications[0].families
+        for selection in prolonged_best.selections[:2]
+    )
+    assert [
+        display.combined_label
+        for display in g_romanizer.display_progression(prolonged)
+    ] == [
+        "C#:m7-5/G [#ivm7-5|CT]",
+        "C#:m7-5 [#ivm7-5|CT]",
+        "C:M7 [IVM7]",
+    ]
 
 def test_joint_key_and_function_inference_crosses_native_boundary():
     paths = Romanizer.strict().analyze_keys_and_functions(

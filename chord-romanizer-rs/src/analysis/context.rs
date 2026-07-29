@@ -46,8 +46,8 @@ pub(crate) struct AnalysisNode {
     /// above summarize the current 1-best reading.
     pub hybrid_candidates: Vec<HybridCandidate>,
     /// The exact hybrid member selected by a detected constant-structure run.
-    /// Keeping the root with the kind avoids tagging a different enharmonic
-    /// candidate that happens to use the same `HybridKind`.
+    /// The final renderer may respell this root enharmonically, so consumers
+    /// match its pitch class while retaining the original spelling as evidence.
     pub constant_structure_member: Option<(HybridKind, SpelledNote)>,
     /// Scored, mutually competing meanings for ordinary chords.  The union of
     /// their classifications remains available below for annotation clients,

@@ -46,6 +46,8 @@ pub(crate) fn infer_ordinary_interpretations(
         };
         let previous = previous_chord[index].and_then(|at| observations[at]);
         let next = next_chord[index].and_then(|at| observations[at]);
+        let common_tone_target =
+            half_diminished_common_tone_target(index, current, observations, next_chord);
 
         // Fully diminished sevenths are symmetric: the same four pitch
         // classes can be named from four different roots.  These rules must
@@ -57,7 +59,7 @@ pub(crate) fn infer_ordinary_interpretations(
         add_flat_seven_subdominant_minor(&mut output[index], current, previous, next);
         add_neapolitan(&mut output[index], current, next);
         add_chromatic_mediant(&mut output[index], current, previous, next);
-        add_half_diminished_common_tone_neighbor(&mut output[index], current, next);
+        add_half_diminished_common_tone_neighbor(&mut output[index], current, common_tone_target);
         add_chromatic_approach(&mut output[index], current, next);
     }
 
@@ -541,6 +543,30 @@ fn add_chromatic_mediant(
     );
 }
 
+fn half_diminished_common_tone_target(
+    index: usize,
+    current: HarmonyObservation,
+    observations: &[Option<HarmonyObservation>],
+    next_chord: &[Option<usize>],
+) -> Option<HarmonyObservation> {
+    if current.quality != QualityClass::HalfDiminished {
+        return next_chord[index].and_then(|at| observations[at]);
+    }
+
+    let mut target_index = next_chord[index]?;
+    for _ in 0..observations.len() {
+        let target = observations[target_index]?;
+        let repeats_same_sonority = target.root.pitch_class() == current.root.pitch_class()
+            && target.quality == current.quality
+            && target.seventh == current.seventh;
+        if !repeats_same_sonority {
+            return Some(target);
+        }
+        target_index = next_chord[target_index]?;
+    }
+    None
+}
+
 fn add_half_diminished_common_tone_neighbor(
     output: &mut Vec<HarmonicInterpretation>,
     current: HarmonyObservation,
@@ -552,15 +578,13 @@ fn add_half_diminished_common_tone_neighbor(
 
     // In C#m7b5 -> Cmaj7, the half-diminished third, fifth, and seventh
     // become the target major seventh's third, fifth, and seventh. Only the
-    // written root moves down by semitone, so this is stronger evidence for a
-    // common-tone decoration than for a predominant function.
-    let is_tonic_major_seventh = next.root.pitch_class() == current.tonic.pitch_class()
-        && next.quality == QualityClass::Major
-        && next.seventh == Some(SeventhQuality::Major)
-        && is_stable_tonic(next);
+    // written root moves down by semitone, so this remains a common-tone
+    // decoration when the target is a stable non-tonic degree such as IVmaj7.
+    let is_major_seventh_target =
+        next.quality == QualityClass::Major && next.seventh == Some(SeventhQuality::Major);
     if current.quality != QualityClass::HalfDiminished
         || semitone_distance(next.root, current.root) != 11
-        || !is_tonic_major_seventh
+        || !is_major_seventh_target
     {
         return;
     }
@@ -574,7 +598,7 @@ fn add_half_diminished_common_tone_neighbor(
         HarmonicInterpretation::new(
             "builtin.ordinary.half_diminished.common_tone_neighbor",
             1.9,
-            "Half-diminished seventh retains three common tones while its root descends by semitone into tonic major seventh",
+            "Half-diminished seventh retains three common tones while its root descends by semitone into the target major seventh",
             classification,
         ),
     );

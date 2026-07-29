@@ -268,6 +268,8 @@ events = romanizer.annotate_events(progression)
 
 `C#m7-5 → CM7`ではE、G、Bの3音を保持し、C#だけがCへ半音下行します。
 この場合はpredominantではなく共通音装飾として`C#m7-5 [#im7-5|CT]`と表示します。
+この判定はtargetがglobal tonicでなくても成立し、G majorの
+`C#:m7-5/G → C#:m7-5 → C:M7`では最初の2和音を`|CT`と表示します。
 
 `Bm7 → Bb:dim7 → Am7`ではroot lineのB–Bb–Aを半音下行でつなぐため、
 `Bb:dim7 [biiidim7|passdim]`と表示します。
@@ -275,7 +277,8 @@ events = romanizer.annotate_events(progression)
 `Eb/F → Gb/Ab → A/B → C/D → Eb/F → G`では、最初の5和音が
 同じ`9sus4`構造を保ち、functional bassを短3度周期で移動します。3和音以上
 続いた場合は個別のS/Dよりconstant structureを優先し、`|CS`と表示します。
-単独の`C/D → G`は従来どおり`C/D [V9sus4|D]`です。
+`F#/G#`や`Gb/G#`から`Gb/Ab`へ正規化されたmemberも同じpitch classとして
+系列を維持します。単独の`C/D → G`は従来どおり`C/D [V9sus4|D]`です。
 
 `C → Caug/F# → FM7`では、Caugを`V+/IV`、F# bassをFへ半音下行する
 独立したapproach bassとして扱います。したがってsubVではなく、
