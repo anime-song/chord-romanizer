@@ -799,6 +799,7 @@ fn interpretation_family_name(family: InterpretationFamily) -> &'static str {
         InterpretationFamily::ChromaticApproach => "chromatic_approach",
         InterpretationFamily::CommonToneNeighbor => "common_tone_neighbor",
         InterpretationFamily::ChromaticApproachBass => "chromatic_approach_bass",
+        InterpretationFamily::ConstantStructure => "constant_structure",
         InterpretationFamily::PassingDiminished => "passing_diminished",
         InterpretationFamily::CommonToneDiminished => "common_tone_diminished",
         InterpretationFamily::AuxiliaryDiminished => "auxiliary_diminished",

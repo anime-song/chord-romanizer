@@ -174,6 +174,14 @@ DbM7 -> CM7
 unsuspended dominantなら`suspension_to_dominant`遷移証拠を加える。
 この候補へ通常コード側のmodal-interchange属性をコピーしない。
 
+同じ`9sus4`／`7sus4(b9)` hybridが3和音以上続き、functional rootが同方向の
+短3度周期を作る場合は、進行全体を`constant_structure`として扱う。各コードの
+局所的なdominant／modal候補は残すが、1-bestではnon-functionalな`CS`を優先する。
+
+```text
+Eb/F -> Gb/Ab -> A/B -> C/D -> Eb/F -> G
+```
+
 augmented upper structureが直前から保持される例では、bass motionだけから得た
 dominant／tritone-substituteを確定しない。
 

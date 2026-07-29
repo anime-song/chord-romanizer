@@ -1382,6 +1382,67 @@ fn k_best_can_preserve_several_temporary_key_spans() {
 }
 
 #[test]
+fn minor_third_suspended_planing_prefers_constant_structure() {
+    let progression = [
+        item("Eb/F"),
+        item("Gb/Ab"),
+        item("A/B"),
+        item("C/D"),
+        item("Eb/F"),
+        item("G"),
+    ];
+    let romanizer = Romanizer::new("G").unwrap();
+    let best = romanizer.analyze_top_k_interpretations(&progression, 1);
+
+    for selection in &best[0].selections[..5] {
+        assert_eq!(selection.hybrid_kind, Some(HybridKind::SusFourNine));
+        let classification = &selection.harmonic_classifications[0];
+        assert_eq!(classification.role, Some(HarmonicRole::NonFunctional));
+        assert!(classification.sources.contains(&HarmonicSource::Chromatic));
+        assert!(
+            classification
+                .families
+                .contains(&InterpretationFamily::ConstantStructure)
+        );
+        assert!(selection.evidence.iter().any(|evidence| {
+            evidence.rule_id == "builtin.progression.constant_structure.minor_third"
+        }));
+    }
+
+    let labels: Vec<_> = romanizer
+        .display_progression(&progression)
+        .into_iter()
+        .map(|display| display.combined_label)
+        .collect();
+    assert_eq!(
+        labels,
+        [
+            "Eb/F [bVII9sus4|CS]",
+            "Gb/Ab [bII9sus4|CS]",
+            "A/B [III9sus4|CS]",
+            "C/D [V9sus4|CS]",
+            "Eb/F [bVII9sus4|CS]",
+            "G [I|T]",
+        ]
+    );
+
+    let isolated = [item("C/D"), item("G")];
+    let isolated_best = romanizer.analyze_top_k_interpretations(&isolated, 1);
+    assert!(
+        isolated_best[0].selections[0]
+            .harmonic_classifications
+            .iter()
+            .all(|classification| !classification
+                .families
+                .contains(&InterpretationFamily::ConstantStructure))
+    );
+    assert_eq!(
+        romanizer.display_progression(&isolated)[0].combined_label,
+        "C/D [V9sus4|D]"
+    );
+}
+
+#[test]
 fn suspended_dominant_is_ranked_as_a_semantic_candidate() {
     let progression = [item("Dm7/G"), item("G7"), item("C")];
     let best = Romanizer::new("C")

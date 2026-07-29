@@ -9,7 +9,7 @@
 use crate::analysis::context::{ContextHint, ResolutionKind, analyze_global_context};
 use crate::analysis::{
     AnalysisLattice, AnalysisPath, BlackadderContext, HarmonicClassification,
-    HarmonicInterpretation, HarmonicRole, InterpretationFamily, InterpretationTree,
+    HarmonicInterpretation, HarmonicRole, HarmonicSource, InterpretationFamily, InterpretationTree,
     InterpretationTreeOptions, KeyAnalysisOptions, KeyedAnalysisPath, ScoreEvidence, TonalMode,
     TonalPerspective, TonalScope,
 };
@@ -571,10 +571,17 @@ impl Romanizer {
                     let blackadder = candidate.analysis.blackadder.clone();
                     let classification = blackadder.as_ref().map_or_else(
                         || {
+                            let constant_structure = node
+                                .and_then(|node| node.constant_structure_member)
+                                .is_some_and(|(kind, root)| {
+                                    kind == candidate.analysis.kind
+                                        && candidate.analysis.effective_root == Some(root)
+                                });
                             functional_hybrid_classification(
                                 candidate,
                                 tonic,
                                 self.options.default_mode,
+                                constant_structure,
                             )
                         },
                         |reading| reading.classification.clone(),
@@ -763,6 +770,7 @@ fn functional_hybrid_classification(
     candidate: &HybridCandidate,
     tonic: SpelledNote,
     global_mode: TonalMode,
+    constant_structure: bool,
 ) -> HarmonicClassification {
     if !matches!(
         candidate.analysis.kind,
@@ -778,9 +786,19 @@ fn functional_hybrid_classification(
     // G, not a D-minor modal borrowing. Giving the functional candidate its
     // own classification also prevents the lattice from copying the union of
     // unrelated ordinary-chord candidates onto the sus state.
-    let mut classification = HarmonicClassification::with_role(HarmonicRole::Dominant);
+    let role = if constant_structure {
+        HarmonicRole::NonFunctional
+    } else {
+        HarmonicRole::Dominant
+    };
+    let mut classification = HarmonicClassification::with_role(role);
     classification.local_degree = Some(degree_from_spelling(effective_root, tonic));
-    classification.add_family(InterpretationFamily::SuspendedDominant);
+    if constant_structure {
+        classification.add_source(HarmonicSource::Chromatic);
+        classification.add_family(InterpretationFamily::ConstantStructure);
+    } else {
+        classification.add_family(InterpretationFamily::SuspendedDominant);
+    }
     classification.perspective = Some(TonalPerspective {
         global_tonic: tonic,
         local_tonic: tonic,

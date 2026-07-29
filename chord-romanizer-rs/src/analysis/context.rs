@@ -9,8 +9,8 @@
 use crate::analysis::ordinary::{HarmonyObservation, infer_ordinary_interpretations};
 use crate::analysis::{
     BlackadderContext, DominantRelation, HarmonicClassification, HarmonicInterpretation,
-    HarmonicRole, InterpretationFamily, TonalMode, TonalPerspective, TonalScope,
-    has_exact_blackadder_shape,
+    HarmonicRole, HarmonicSource, InterpretationFamily, ScoreEvidence, TonalMode, TonalPerspective,
+    TonalScope, has_exact_blackadder_shape,
 };
 use crate::domain::{
     Degree, ParsedChord, ParsedSymbol, ProgressionItem, QualityClass, RomanDegree, SeventhQuality,
@@ -45,6 +45,10 @@ pub(crate) struct AnalysisNode {
     /// All local slash/hybrid readings are retained even though the fields
     /// above summarize the current 1-best reading.
     pub hybrid_candidates: Vec<HybridCandidate>,
+    /// The exact hybrid member selected by a detected constant-structure run.
+    /// Keeping the root with the kind avoids tagging a different enharmonic
+    /// candidate that happens to use the same `HybridKind`.
+    pub constant_structure_member: Option<(HybridKind, SpelledNote)>,
     /// Scored, mutually competing meanings for ordinary chords.  The union of
     /// their classifications remains available below for annotation clients,
     /// while the lattice materializes these entries as distinct states.
@@ -148,6 +152,7 @@ pub(crate) fn analyze_global_context(
     // function, and linear voice-leading are independent analytical axes.
     if interpreter.behavior() == BehaviorProfile::StrictV1 {
         detect_ordinary_interpretations(&mut nodes, &previous_chord, &next_chord);
+        detect_minor_third_constant_structures(&mut nodes, &previous_chord, &next_chord);
     }
 
     // Phase 4: derive a display-spelling preference. This affects whether a
@@ -398,6 +403,7 @@ fn pre_analyze(
         seventh: chord.quality_parsed.seventh,
         tonal_mode: tonal_mode(chord),
         hybrid_candidates,
+        constant_structure_member: None,
         harmonic_interpretations: Vec::new(),
         harmonic_classifications: Vec::new(),
         is_ii_v_start: false,
@@ -931,6 +937,132 @@ fn tonal_perspective(
             TonalScope::Tonicization
         },
         mode,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ConstantStructureMember {
+    kind: HybridKind,
+    root: SpelledNote,
+}
+
+fn constant_structure_member(node: &AnalysisNode) -> Option<ConstantStructureMember> {
+    node.hybrid_candidates.iter().find_map(|candidate| {
+        let kind = candidate.analysis.kind;
+        if !matches!(
+            kind,
+            HybridKind::SusFourNine | HybridKind::SusFourSevenFlatNine
+        ) {
+            return None;
+        }
+        Some(ConstantStructureMember {
+            kind,
+            root: candidate.analysis.effective_root?,
+        })
+    })
+}
+
+fn detect_minor_third_constant_structures(
+    nodes: &mut [Option<AnalysisNode>],
+    previous_chord: &[Option<usize>],
+    next_chord: &[Option<usize>],
+) {
+    for start_index in 0..nodes.len() {
+        let Some(start_node) = nodes[start_index].as_ref() else {
+            continue;
+        };
+        let Some(first) = constant_structure_member(start_node) else {
+            continue;
+        };
+        let Some(second_index) = next_chord[start_index] else {
+            continue;
+        };
+        let Some(second_node) = nodes[second_index].as_ref() else {
+            continue;
+        };
+        let Some(second) = constant_structure_member(second_node) else {
+            continue;
+        };
+        if first.kind != second.kind || start_node.tonic != second_node.tonic {
+            continue;
+        }
+
+        let step = semitone_distance(second.root, first.root);
+        if !matches!(step, 3 | 9) {
+            continue;
+        }
+
+        // Only the first member builds a maximal run. A later suffix would
+        // otherwise receive the same contextual score more than once.
+        if previous_chord[start_index]
+            .and_then(|index| nodes[index].as_ref())
+            .is_some_and(|previous_node| {
+                previous_node.tonic == start_node.tonic
+                    && constant_structure_member(previous_node).is_some_and(|previous| {
+                        previous.kind == first.kind
+                            && semitone_distance(first.root, previous.root) == step
+                    })
+            })
+        {
+            continue;
+        }
+
+        let tonic = start_node.tonic;
+        let mut run = vec![(start_index, first), (second_index, second)];
+        let mut current_index = second_index;
+        let mut current = second;
+        while let Some(next_index) = next_chord[current_index] {
+            let Some(next_node) = nodes[next_index].as_ref() else {
+                break;
+            };
+            let Some(next) = constant_structure_member(next_node) else {
+                break;
+            };
+            if next.kind != first.kind
+                || next_node.tonic != tonic
+                || semitone_distance(next.root, current.root) != step
+            {
+                break;
+            }
+            run.push((next_index, next));
+            current_index = next_index;
+            current = next;
+        }
+
+        if run.len() < 3 {
+            continue;
+        }
+
+        for (index, member) in run {
+            let Some(node) = nodes[index].as_mut() else {
+                continue;
+            };
+            node.constant_structure_member = Some((member.kind, member.root));
+            if let Some(candidate) = node.hybrid_candidates.iter_mut().find(|candidate| {
+                candidate.analysis.kind == member.kind
+                    && candidate.analysis.effective_root == Some(member.root)
+            }) {
+                candidate.intrinsic_score += 1.0;
+                candidate.evidence.push(ScoreEvidence::new(
+                    "builtin.progression.constant_structure.minor_third",
+                    1.0,
+                    "Same-shape suspended hybrids continue a symmetric minor-third root cycle",
+                ));
+            }
+
+            let mut classification = HarmonicClassification::with_role(HarmonicRole::NonFunctional);
+            classification.local_degree = Some(degree_from_spelling(member.root, node.tonic));
+            classification.add_source(HarmonicSource::Chromatic);
+            classification.add_family(InterpretationFamily::ConstantStructure);
+            classification.perspective = Some(TonalPerspective {
+                global_tonic: node.tonic,
+                local_tonic: node.tonic,
+                local_tonic_degree: degree_from_spelling(node.tonic, node.tonic),
+                scope: TonalScope::Global,
+                mode: node.global_mode,
+            });
+            push_classification(node, classification);
+        }
     }
 }
 

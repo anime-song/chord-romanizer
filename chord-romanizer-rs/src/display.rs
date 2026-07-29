@@ -245,6 +245,13 @@ fn function_label(
     }
 
     if classification
+        .families
+        .contains(&InterpretationFamily::ConstantStructure)
+    {
+        return Some("CS".to_owned());
+    }
+
+    if classification
         .sources
         .contains(&HarmonicSource::SubdominantMinor)
     {

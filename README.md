@@ -256,6 +256,7 @@ events = romanizer.annotate_events(progression)
 | `NF` | non-functional |
 | `CT` | 共通音を保持するchromatic neighbor |
 | `passdim` | 半音進行をつなぐpassing diminished |
+| `CS` | 同型コードを反復するconstant structure |
 | `V/ii` | iiを一時主音とするdominant |
 | `V+/IV` | IVへ向かうaugmented dominant |
 | `subV/IV` | IVへ向かうtritone substitute |
@@ -270,6 +271,11 @@ events = romanizer.annotate_events(progression)
 
 `Bm7 → Bb:dim7 → Am7`ではroot lineのB–Bb–Aを半音下行でつなぐため、
 `Bb:dim7 [biiidim7|passdim]`と表示します。
+
+`Eb/F → Gb/Ab → A/B → C/D → Eb/F → G`では、最初の5和音が
+同じ`9sus4`構造を保ち、functional bassを短3度周期で移動します。3和音以上
+続いた場合は個別のS/Dよりconstant structureを優先し、`|CS`と表示します。
+単独の`C/D → G`は従来どおり`C/D [V9sus4|D]`です。
 
 `C → Caug/F# → FM7`では、Caugを`V+/IV`、F# bassをFへ半音下行する
 独立したapproach bassとして扱います。したがってsubVではなく、

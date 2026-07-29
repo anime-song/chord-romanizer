@@ -89,6 +89,10 @@ pub enum InterpretationFamily {
     /// A slash bass that approaches the next harmony by semitone while an
     /// independently functional upper structure follows its own root motion.
     ChromaticApproachBass,
+    /// Three or more same-shape hybrid chords moving through a symmetric
+    /// minor-third root cycle. The repeated structure is primary; local
+    /// dominant or modal readings remain available as alternatives.
+    ConstantStructure,
     /// A diminished seventh created by chromatic motion between surrounding
     /// harmonies.  Chord symbols alone can propose this reading; MIDI/voicing
     /// evidence will eventually decide whether the required lines exist.

@@ -365,6 +365,44 @@ def test_tonal_state_and_quality_families_cross_native_boundary():
     )
 
 
+def test_minor_third_suspended_planing_is_constant_structure():
+    romanizer = Romanizer.strict("G")
+    progression = ["Eb/F", "Gb/Ab", "A/B", "C/D", "Eb/F", "G"]
+    best = romanizer.analyze_top_k_interpretations(progression, k=1)[0]
+
+    for selection in best.selections[:5]:
+        classification = selection.harmonic_classifications[0]
+        assert selection.hybrid_kind == "9sus4"
+        assert classification.role == "non_functional"
+        assert classification.sources == ["chromatic"]
+        assert "constant_structure" in classification.families
+        assert any(
+            evidence.rule_id
+            == "builtin.progression.constant_structure.minor_third"
+            for evidence in selection.evidence
+        )
+
+    assert [
+        display.combined_label
+        for display in romanizer.display_progression(progression)
+    ] == [
+        "Eb/F [bVII9sus4|CS]",
+        "Gb/Ab [bII9sus4|CS]",
+        "A/B [III9sus4|CS]",
+        "C/D [V9sus4|CS]",
+        "Eb/F [bVII9sus4|CS]",
+        "G [I|T]",
+    ]
+
+    isolated = romanizer.analyze_top_k_interpretations(["C/D", "G"], k=1)[0]
+    assert all(
+        "constant_structure" not in classification.families
+        for classification in isolated.selections[0].harmonic_classifications
+    )
+    assert romanizer.display_progression(["C/D", "G"])[0].combined_label == (
+        "C/D [V9sus4|D]"
+    )
+
 def test_half_diminished_tonic_neighbor_is_common_tone_decoration():
     romanizer = Romanizer.strict("C")
     annotated = romanizer.annotate_progression(["C#m7-5", "CM7"])

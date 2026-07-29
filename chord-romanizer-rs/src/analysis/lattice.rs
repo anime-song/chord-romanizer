@@ -21,7 +21,7 @@ use crate::profile::{KeyBoundaryPolicy, NoChordPolicy};
 use crate::romanizer::{AnnotatedEvent, ResolutionType, RomanizedChord, RomanizerOptions};
 
 /// Version of candidate identities and built-in ranking rules.
-pub const BUILTIN_RULE_SET_VERSION: &str = "builtin-strict-v13-dominant-prolongation";
+pub const BUILTIN_RULE_SET_VERSION: &str = "builtin-strict-v14-constant-structure";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// Why a candidate exists in a layer.
@@ -831,6 +831,22 @@ fn add_semantic_transition_evidence(
                     "builtin.progression.coherent_alternate_key_pair",
                     0.7,
                     "Adjacent chord roles are coherent in the same alternate key",
+                );
+            }
+
+            let coherent_constant_structure = from_classification
+                .families
+                .contains(&InterpretationFamily::ConstantStructure)
+                && to_classification
+                    .families
+                    .contains(&InterpretationFamily::ConstantStructure);
+            if coherent_constant_structure {
+                add_evidence(
+                    score,
+                    evidence,
+                    "builtin.progression.coherent_constant_structure",
+                    0.75,
+                    "Adjacent candidates continue the same constant-structure cycle",
                 );
             }
 
