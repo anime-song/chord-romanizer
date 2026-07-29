@@ -256,6 +256,7 @@ events = romanizer.annotate_events(progression)
 | `NF` | non-functional |
 | `CT` | 共通音を保持するchromatic neighbor |
 | `V/ii` | iiを一時主音とするdominant |
+| `V+/IV` | IVへ向かうaugmented dominant |
 | `subV/IV` | IVへ向かうtritone substitute |
 | `I/IV`, `i/vi` | 一時的な調でのtonic |
 | `SDm` | subdominant minor由来 |
@@ -265,6 +266,10 @@ events = romanizer.annotate_events(progression)
 
 `C#m7-5 → CM7`ではE、G、Bの3音を保持し、C#だけがCへ半音下行します。
 この場合はpredominantではなく共通音装飾として`C#m7-5 [#im7-5|CT]`と表示します。
+
+`C → Caug/F# → FM7`では、Caugを`V+/IV`、F# bassをFへ半音下行する
+独立したapproach bassとして扱います。したがってsubVではなく、
+`Caug/F# [Iaug/#IV|V+/IV]`を1-bestとして表示します。
 
 ## StrictV1と旧バージョン互換
 

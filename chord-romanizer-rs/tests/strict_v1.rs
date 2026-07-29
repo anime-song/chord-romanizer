@@ -1411,6 +1411,45 @@ fn augmented_sixth_candidate_survives_semantic_top_five() {
 }
 
 #[test]
+fn augmented_dominant_with_approach_bass_outranks_tritone_substitute() {
+    let progression = [item("C"), item("Caug/F#"), item("FM7")];
+    let romanizer = Romanizer::new("C").unwrap();
+    let result = romanizer.annotate_progression(&progression);
+    let display = romanizer.display_progression(&progression);
+    let paths = romanizer.analyze_top_k_interpretations(&progression, 3);
+
+    assert_eq!(result[1].normalized_symbol, "Caug/F#");
+    assert_eq!(display[1].combined_label, "Caug/F# [Iaug/#IV|V+/IV]");
+    let reading = paths[0].selections[1].blackadder.as_ref().unwrap();
+    assert_eq!(
+        reading.structure,
+        BlackadderStructure::AugmentedTriadOverBass
+    );
+    assert_eq!(
+        reading.function,
+        Some(BlackadderFunction::SecondaryDominant)
+    );
+    assert_eq!(
+        reading.origin,
+        Some(BlackadderOrigin::UpperStructureWithIndependentBass)
+    );
+    assert_eq!(reading.canonical_bass, SpelledNote::parse("F#").unwrap());
+    assert_eq!(
+        reading.effective_root,
+        Some(SpelledNote::parse("C").unwrap())
+    );
+    assert_eq!(reading.target_root, Some(SpelledNote::parse("F").unwrap()));
+    assert!(
+        reading
+            .classification
+            .families
+            .contains(&InterpretationFamily::ChromaticApproachBass)
+    );
+    assert!(paths[0].evidence.iter().any(|evidence| {
+        evidence.rule_id == "builtin.blackadder.transition.augmented_dominant_approach_bass"
+    }));
+}
+#[test]
 fn retained_augmented_upper_structure_gates_bass_only_function() {
     let progression = [item("C"), item("Caug"), item("Caug/F#"), item("FM7")];
     let paths = Romanizer::new("C")

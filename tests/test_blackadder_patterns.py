@@ -67,6 +67,28 @@ def test_half_diminished_reading_requires_root_related_dominant_for_top_label():
     assert "m7-5(9)" not in isolated[0].combined_label
 
 
+def test_augmented_dominant_with_approach_bass_outranks_substitute():
+    romanizer = Romanizer.strict("C")
+    progression = ["C", "Caug/F#", "FM7"]
+    display = romanizer.display_progression(progression)
+    paths = romanizer.analyze_top_k_interpretations(progression, k=3)
+    reading = paths[0].selections[1].blackadder
+
+    assert display[1].combined_label == "Caug/F# [Iaug/#IV|V+/IV]"
+    assert reading is not None
+    assert reading.structure == "augmented_triad_over_bass"
+    assert reading.function == "secondary_dominant"
+    assert reading.origin == "upper_structure_with_independent_bass"
+    assert reading.canonical_bass == "F#"
+    assert reading.effective_root == "C"
+    assert reading.target_root == "F"
+    assert "chromatic_approach_bass" in reading.classification.families
+    assert any(
+        evidence.rule_id
+        == "builtin.blackadder.transition.augmented_dominant_approach_bass"
+        for evidence in paths[0].evidence
+    )
+
 def test_unresolved_fallback_families_reach_semantic_top_five():
     paths = Romanizer.strict("C").analyze_top_k_interpretations(
         ["Bbaug/C"], k=5

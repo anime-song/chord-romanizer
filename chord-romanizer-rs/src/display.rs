@@ -5,8 +5,8 @@
 //! without asking every UI or MIDI exporter to reimplement theory rules.
 
 use crate::analysis::{
-    AnalysisLattice, BlackadderFunction, HarmonicClassification, HarmonicRole, HarmonicSource,
-    InterpretationFamily, PathSelection, TonalMode, TonalPerspective, TonalScope,
+    AnalysisLattice, BlackadderFunction, BlackadderStructure, HarmonicClassification, HarmonicRole,
+    HarmonicSource, InterpretationFamily, PathSelection, TonalMode, TonalPerspective, TonalScope,
 };
 use crate::domain::{Degree, ParsedChord, ProgressionItem, QualityClass};
 use crate::interpreter::SlashClassification;
@@ -208,6 +208,11 @@ fn function_label(
         return match reading.function {
             Some(BlackadderFunction::TritoneSubstitute) => {
                 target.map(|target| format!("subV/{target}"))
+            }
+            Some(BlackadderFunction::SecondaryDominant)
+                if reading.structure == BlackadderStructure::AugmentedTriadOverBass =>
+            {
+                target.map(|target| format!("V+/{target}"))
             }
             Some(BlackadderFunction::Dominant | BlackadderFunction::SecondaryDominant) => {
                 target.map(|target| format!("V/{target}"))

@@ -86,6 +86,9 @@ pub enum InterpretationFamily {
     /// A chromatic neighbor chord that retains most tones of its target.
     /// For example, C#m7b5 -> Cmaj7 keeps E, G, and B while C# moves to C.
     CommonToneNeighbor,
+    /// A slash bass that approaches the next harmony by semitone while an
+    /// independently functional upper structure follows its own root motion.
+    ChromaticApproachBass,
     /// A diminished seventh created by chromatic motion between surrounding
     /// harmonies.  Chord symbols alone can propose this reading; MIDI/voicing
     /// evidence will eventually decide whether the required lines exist.

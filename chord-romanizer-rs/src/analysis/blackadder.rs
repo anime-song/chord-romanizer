@@ -245,7 +245,47 @@ pub(crate) fn analyze_blackadder(
         },
     ));
 
-    // 2. A bass-rooted dominant-tension structure is always algebraically
+    // 2. In I -> Iaug/approach-bass -> IV, the augmented upper structure is
+    // V+ of IV while the slash bass is an independent upper chromatic neighbor
+    // of the target bass. Keep the sharp approach spelling (F# -> F) instead
+    // of respelling the bass as Gb and hearing a bass-rooted subV.
+    if let (Some(tonic), Some(previous), Some(next)) =
+        (context.tonic, context.previous_chord, context.next_chord)
+    {
+        let previous_establishes_tonic_upper = previous.root.pitch_class() == tonic.pitch_class()
+            && canonical_upper_root.pitch_class() == tonic.pitch_class()
+            && structure::is_tonic_for(previous, behavior);
+        let upper_is_augmented_dominant = semitone_distance(next.root, canonical_upper_root) == 5
+            && structure::is_tonic_for(next, behavior);
+        let bass_descends_to_target = semitone_distance(next.root, bass) == 11;
+        if previous_establishes_tonic_upper
+            && upper_is_augmented_dominant
+            && bass_descends_to_target
+        {
+            let approach_bass = spell_pitch_class(next.root.letter, bass.pitch_class());
+            readings.push(scored(
+                interpretation(
+                    approach_bass,
+                    written_upper_root,
+                    canonical_upper_root,
+                    BlackadderStructure::AugmentedTriadOverBass,
+                    Some(BlackadderFunction::SecondaryDominant),
+                    Some(BlackadderOrigin::UpperStructureWithIndependentBass),
+                    Some(canonical_upper_root),
+                    Some(next.root),
+                    None,
+                    Vec::new(),
+                ),
+                format!("{canonical_upper_root}aug/{approach_bass}"),
+                root_override,
+                Some(approach_bass.accidental >= 0),
+                1.5,
+                "builtin.blackadder.function.augmented_dominant_with_approach_bass",
+                "Augmented upper structure functions as V+ of the target while the slash bass descends chromatically into that target",
+            ));
+        }
+    }
+    // 3. A bass-rooted dominant-tension structure is always algebraically
     // possible.  Its more specific function is inferred from root motion, but
     // the score for that motion is attached to a lattice edge, not here.
     let (dominant_function, target_root) =
@@ -275,7 +315,7 @@ pub(crate) fn analyze_blackadder(
         "Blackadder core read as a bass-rooted dominant ninth with omitted third and fifth",
     ));
 
-    // 3. Replacing the absent minor third yields the half-diminished reading.
+    // 4. Replacing the absent minor third yields the half-diminished reading.
     // Because the defining minor third is absent, the pitch set alone is weak
     // evidence. Assert a predominant role only for the characteristic
     // iiø(add9)-V motion: the following chord must be dominant-quality and its
@@ -308,7 +348,7 @@ pub(crate) fn analyze_blackadder(
         "Blackadder core permits an m7b5(add9) reading, but its minor third is omitted",
     ));
 
-    // 4. For every Blackadder set, the note a major second over the bass can
+    // 5. For every Blackadder set, the note a major second over the bass can
     // be the root of aug7 and the bass can be its seventh.  Because this is a
     // mathematical identity rather than contextual evidence, its base score
     // is deliberately neutral.
@@ -333,7 +373,7 @@ pub(crate) fn analyze_blackadder(
         "Blackadder core read as an augmented-seventh chord in third inversion",
     ));
 
-    // 5. Every exact set belongs to one whole-tone collection, so membership
+    // 6. Every exact set belongs to one whole-tone collection, so membership
     // alone is weak evidence.  Melody or neighboring voicings can later turn
     // this into a strong chord-scale interpretation.
     let mut whole_tone_requirements = vec![BlackadderObservationKind::MelodicScaleContext];
@@ -368,7 +408,7 @@ pub(crate) fn analyze_blackadder(
         "Blackadder core is a subset of one whole-tone collection",
     ));
 
-    // 6. SDm is key-relative rather than a local chord shape.  A pitch-class
+    // 7. SDm is key-relative rather than a local chord shape.  A pitch-class
     // match to b6 creates a candidate; exact scale-degree spelling contributes
     // a small extra amount because it is stronger evidence than enharmonic
     // equivalence alone.
@@ -407,7 +447,7 @@ pub(crate) fn analyze_blackadder(
         }
     }
 
-    // 7. An augmented-sixth interpretation requires the ten-semitone member
+    // 8. An augmented-sixth interpretation requires the ten-semitone member
     // to be written as a diatonic sixth above the bass.  Resolution behavior is
     // intentionally deferred to MIDI/voice-leading observations.
     if contains_spelled_augmented_sixth(chord, bass, behavior) {
@@ -444,7 +484,7 @@ pub(crate) fn analyze_blackadder(
         ));
     }
 
-    // 8/9. Text alone cannot distinguish independent voice leading from an
+    // 9/10. Text alone cannot distinguish independent voice leading from an
     // incidental verticality.  Keep both hypotheses at low rank and expose
     // exactly which observations would allow a future MIDI analyzer to decide.
     let split_flag = context
@@ -527,7 +567,7 @@ pub(crate) fn analyze_blackadder(
         "A short weak-beat sonority assembled across parts may be incidental",
     ));
 
-    // 10. Preserve the pre-existing rootless dominant interpretation as an
+    // 11. Preserve the pre-existing rootless dominant interpretation as an
     // additional candidate, but never let it replace the canonical bass-rooted
     // Blackadder analyses.  It is generated only when its inferred root really
     // resolves to the following tonic-like chord.
@@ -624,6 +664,22 @@ pub(crate) fn transition_evidence(
                 "builtin.blackadder.transition.augmented_sixth",
                 5.7,
                 "Spelled augmented-sixth outer notes converge by semitone on the following harmony",
+            )
+        }
+        Some(BlackadderFunction::SecondaryDominant)
+            if interpretation.structure == BlackadderStructure::AugmentedTriadOverBass
+                && interpretation.origin
+                    == Some(BlackadderOrigin::UpperStructureWithIndependentBass)
+                && interpretation
+                    .effective_root
+                    .is_some_and(|root| semitone_distance(next.root, root) == 5)
+                && semitone_distance(next.root, interpretation.canonical_bass) == 11
+                && structure::is_tonic_for(next, behavior) =>
+        {
+            (
+                "builtin.blackadder.transition.augmented_dominant_approach_bass",
+                7.0,
+                "Augmented dominant upper structure resolves to its target while the independent bass descends by semitone",
             )
         }
         Some(BlackadderFunction::TritoneSubstitute)
@@ -908,6 +964,17 @@ fn classify_readings(readings: &mut [ScoredBlackadder], context: BlackadderConte
             Some(BlackadderFunction::Predominant) | None => {}
         }
 
+        if interpretation.structure == BlackadderStructure::AugmentedTriadOverBass
+            && interpretation.function == Some(BlackadderFunction::SecondaryDominant)
+            && interpretation.origin == Some(BlackadderOrigin::UpperStructureWithIndependentBass)
+            && interpretation.target_root.is_some_and(|target| {
+                semitone_distance(target, interpretation.canonical_bass) == 11
+            })
+        {
+            classification.add_source(HarmonicSource::Chromatic);
+            classification.add_family(InterpretationFamily::ChromaticApproachBass);
+            classification.add_family(InterpretationFamily::SplitVoiceLeading);
+        }
         match interpretation.scale {
             Some(BlackadderScale::LydianDominant) => {
                 classification.add_source(HarmonicSource::LydianDominant);
