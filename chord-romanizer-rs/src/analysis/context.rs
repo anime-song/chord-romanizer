@@ -10,6 +10,7 @@ use crate::analysis::ordinary::{HarmonyObservation, infer_ordinary_interpretatio
 use crate::analysis::{
     BlackadderContext, DominantRelation, HarmonicClassification, HarmonicInterpretation,
     HarmonicRole, InterpretationFamily, TonalMode, TonalPerspective, TonalScope,
+    has_exact_blackadder_shape,
 };
 use crate::domain::{
     Degree, ParsedChord, ParsedSymbol, ProgressionItem, QualityClass, RomanDegree, SeventhQuality,
@@ -67,6 +68,10 @@ pub(crate) enum ResolutionKind {
 pub(crate) struct ContextHint {
     pub prefer_sharps: Option<bool>,
     pub node: Option<AnalysisNode>,
+    /// Functional target supplied to local hybrid analysis. Usually this is
+    /// the next chord with its effective root substituted. A Blackadder chord
+    /// may look through one prolonging dominant to its confirmed target.
+    pub hybrid_target_chord: Option<ParsedChord>,
 }
 
 #[derive(Clone, Debug)]
@@ -98,36 +103,40 @@ pub(crate) fn analyze_global_context(
     let (previous_chord, next_chord) =
         build_neighbors(items, default_tonic, key_boundary_policy, no_chord_policy);
 
-    // Phase 2: produce local analyses. StrictV1 is allowed one-symbol
-    // look-ahead so ambiguous augmented-over-bass readings can notice an
-    // immediate resolution. Python019 deliberately preserves the old
-    // context-free pre-analysis behavior.
-    let mut nodes: Vec<Option<AnalysisNode>> = items
-        .iter()
-        .enumerate()
-        .map(|(index, item)| {
-            item.chord().map(|chord| {
-                let contextual_previous = if interpreter.behavior() == BehaviorProfile::StrictV1 {
-                    previous_chord[index].and_then(|previous| items[previous].chord())
-                } else {
-                    None
-                };
-                let contextual_next = if interpreter.behavior() == BehaviorProfile::StrictV1 {
-                    next_chord[index].and_then(|next| items[next].chord())
-                } else {
-                    None
-                };
-                pre_analyze(
-                    chord,
-                    item_tonic(item, default_tonic),
-                    default_mode,
-                    contextual_previous,
-                    contextual_next,
-                    interpreter,
-                )
-            })
-        })
-        .collect();
+    // Phase 2: produce context-aware local analyses from right to left. The
+    // dependency points only toward the following chord, so this order lets a
+    // predecessor see that chord's already selected effective root. A
+    // functional slash chord's written upper root is not necessarily the root
+    // that harmony resolves to (`B/C#`, for example, functions from C#).
+    // Keep the previous chord's written root: Blackadder repetition rules
+    // intentionally track its upper structure. Python019 deliberately
+    // preserves context-free pre-analysis.
+    let mut nodes: Vec<Option<AnalysisNode>> = vec![None; items.len()];
+    for index in (0..items.len()).rev() {
+        let item = &items[index];
+        let Some(chord) = item.chord() else {
+            continue;
+        };
+        let contextual_previous = if interpreter.behavior() == BehaviorProfile::StrictV1 {
+            previous_chord[index].and_then(|previous| items[previous].chord())
+        } else {
+            None
+        };
+        let contextual_next = if interpreter.behavior() == BehaviorProfile::StrictV1 {
+            blackadder_prolongation_target(index, items, &nodes, &next_chord)
+                .or_else(|| effective_chord(next_chord[index]?, items, &nodes))
+        } else {
+            None
+        };
+        nodes[index] = Some(pre_analyze(
+            chord,
+            item_tonic(item, default_tonic),
+            default_mode,
+            contextual_previous,
+            contextual_next.as_ref(),
+            interpreter,
+        ));
+    }
 
     // Phase 3: annotate pairwise and three-chord patterns on the already
     // chosen effective roots. This avoids recomputing slash interpretation in
@@ -184,6 +193,13 @@ pub(crate) fn analyze_global_context(
             ContextHint {
                 prefer_sharps,
                 node: Some(node),
+                hybrid_target_chord: blackadder_prolongation_target(
+                    index,
+                    items,
+                    &nodes,
+                    &next_chord,
+                )
+                .or_else(|| effective_chord(next_chord[index]?, items, &nodes)),
             }
         })
         .collect();
@@ -249,6 +265,46 @@ fn next_node<'a>(
     next_chord: &[Option<usize>],
 ) -> Option<&'a AnalysisNode> {
     next_chord[index].and_then(|next| nodes[next].as_ref())
+}
+
+fn effective_chord(
+    index: usize,
+    items: &[ProgressionItem],
+    nodes: &[Option<AnalysisNode>],
+) -> Option<ParsedChord> {
+    let mut chord = items[index].chord()?.clone();
+    chord.root = nodes[index].as_ref()?.effective_root;
+    Some(chord)
+}
+
+/// Look through one dominant only when it prolongs the same tonic target as a
+/// bass-rooted Blackadder tritone substitute. This deliberately does not skip
+/// a dominant for generic slash chords or half-diminished predominant shapes.
+fn blackadder_prolongation_target(
+    index: usize,
+    items: &[ProgressionItem],
+    nodes: &[Option<AnalysisNode>],
+    next_chord: &[Option<usize>],
+) -> Option<ParsedChord> {
+    let chord = items[index].chord()?;
+    let bass = chord.bass?;
+    if !has_exact_blackadder_shape(chord, bass) {
+        return None;
+    }
+
+    let dominant_index = next_chord[index]?;
+    let dominant = nodes[dominant_index].as_ref()?;
+    let target_index = next_chord[dominant_index]?;
+    let target = nodes[target_index].as_ref()?;
+    let prolongs_dominant = dominant.is_dominant
+        && target.is_tonic_quality
+        && semitone_distance(target.effective_root, dominant.effective_root) == 5;
+    let blackadder_is_substitute = semitone_distance(target.effective_root, bass) == 11;
+    if !prolongs_dominant || !blackadder_is_substitute {
+        return None;
+    }
+
+    effective_chord(target_index, items, nodes)
 }
 
 fn pre_analyze(

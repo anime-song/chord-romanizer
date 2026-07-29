@@ -217,6 +217,127 @@ fn blackadder_k_best_retains_function_in_each_path() {
 }
 
 #[test]
+fn blackadder_lookahead_uses_next_slash_chords_effective_root() {
+    let progression = [
+        item("G#:aug/D"),
+        item("B/C#"),
+        item("Bb/C"),
+        item("E:aug/A#"),
+        item("A/B"),
+        item("E"),
+    ];
+    let result = Romanizer::new("E")
+        .unwrap()
+        .annotate_progression(&progression);
+
+    assert_eq!(result[0].symbol_fixed, "G#:aug/D");
+    assert_eq!(result[0].hybrid_kind, Some(HybridKind::Blackadder));
+    assert_eq!(result[0].alter.as_deref(), Some("bVII7(9,#11)"));
+    let first = result[0]
+        .functional_interpretations
+        .iter()
+        .filter_map(|interpretation| interpretation.blackadder.as_ref())
+        .find(|reading| reading.function == Some(BlackadderFunction::TritoneSubstitute))
+        .unwrap();
+    assert_eq!(
+        first
+            .classification
+            .perspective
+            .as_ref()
+            .unwrap()
+            .local_tonic,
+        SpelledNote::parse("C#").unwrap()
+    );
+
+    assert_eq!(result[3].symbol_fixed, "E:aug/A#");
+    assert_eq!(
+        result[3].hybrid_kind,
+        Some(HybridKind::SecondaryDominantThirdInBass)
+    );
+    assert_eq!(result[3].alter.as_deref(), Some("II7(9,#11)/#IV"));
+    let second = result[3]
+        .functional_interpretations
+        .iter()
+        .filter_map(|interpretation| interpretation.blackadder.as_ref())
+        .find(|reading| reading.function == Some(BlackadderFunction::SecondaryDominant))
+        .unwrap();
+    assert_eq!(
+        second
+            .classification
+            .perspective
+            .as_ref()
+            .unwrap()
+            .local_tonic,
+        SpelledNote::parse("B").unwrap()
+    );
+}
+
+#[test]
+fn blackadder_spelling_uses_the_canonical_bass() {
+    let progression = [item("Bm7"), item("Eaug/A#"), item("AM7")];
+    let result = Romanizer::new("E")
+        .unwrap()
+        .annotate_progression(&progression);
+
+    assert!(result[0].is_ii_v_start);
+    assert_eq!(result[1].symbol_fixed, "Eaug/Bb");
+    assert_eq!(result[1].alter.as_deref(), Some("bV7(9,#11)"));
+    assert_eq!(result[1].hybrid_kind, Some(HybridKind::Blackadder));
+    assert!(
+        result[1]
+            .functional_interpretations
+            .iter()
+            .any(|candidate| {
+                candidate.blackadder.as_ref().is_some_and(|reading| {
+                    reading.function == Some(BlackadderFunction::TritoneSubstitute)
+                        && reading.target_root == Some(SpelledNote::parse("A").unwrap())
+                })
+            })
+    );
+    assert!(result[2].is_resolution_target);
+}
+
+#[test]
+fn blackadder_looks_through_one_prolonging_dominant() {
+    let progression = [item("Am7"), item("Baug/F"), item("A/B"), item("E/G#")];
+    let romanizer = Romanizer::new("E").unwrap();
+    let result = romanizer.annotate_progression(&progression);
+
+    assert_eq!(result[1].symbol_fixed, "Baug/F");
+    assert_eq!(result[1].alter.as_deref(), Some("bII7(9,#11)"));
+    assert_eq!(result[1].hybrid_kind, Some(HybridKind::Blackadder));
+    assert_eq!(result[2].alter.as_deref(), Some("V9sus4"));
+    assert_eq!(result[3].roman, "I/III");
+
+    let paths = romanizer.analyze_top_k(&progression, 1);
+    assert_eq!(
+        paths[0].selections[1]
+            .blackadder
+            .as_ref()
+            .and_then(|reading| reading.function),
+        Some(BlackadderFunction::TritoneSubstitute)
+    );
+    assert!(
+        paths[0]
+            .evidence
+            .iter()
+            .any(|evidence| { evidence.rule_id == "builtin.progression.dominant_prolongation" })
+    );
+
+    // A genuine half-diminished predominant still resolves to the immediate
+    // dominant; the bounded look-ahead must not skip it.
+    let predominant =
+        Romanizer::new("C")
+            .unwrap()
+            .annotate_progression(&[item("Daug/C"), item("G7"), item("C")]);
+    assert_eq!(
+        predominant[0].hybrid_kind,
+        Some(HybridKind::HalfDiminishedNine)
+    );
+    assert_eq!(predominant[0].alter.as_deref(), Some("Im7-5(9)"));
+}
+
+#[test]
 fn blackadder_rotation_is_not_a_separate_interpretation_axis() {
     let romanizer = Romanizer::new("G").unwrap();
     let progression = [item("G#aug/F#"), item("GM7/D")];

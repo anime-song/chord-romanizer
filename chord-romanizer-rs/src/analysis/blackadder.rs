@@ -205,7 +205,10 @@ pub(crate) fn analyze_blackadder(
         canonical_bass.pitch_class().offset(2),
     );
     let root_override = (chord.root != canonical_upper_root).then_some(canonical_upper_root);
-    let tritone_spelling = classify_tritone_spelling(chord, bass, behavior);
+    // The public label uses the contextually respelled bass. Classify the
+    // tritone against that same spelling so `Eaug/A# -> Eaug/Bb` also changes
+    // `b5` to the theoretically consistent `#11`.
+    let tritone_spelling = classify_tritone_spelling(chord, canonical_bass, behavior);
     let whole_tone = if canonical_bass.pitch_class().value() % 2 == 0 {
         WholeToneCollection::EvenPitchClasses
     } else {
@@ -692,7 +695,7 @@ pub(crate) fn transition_score(
     .sum()
 }
 
-fn has_exact_blackadder_shape(chord: &ParsedChord, bass: SpelledNote) -> bool {
+pub(crate) fn has_exact_blackadder_shape(chord: &ParsedChord, bass: SpelledNote) -> bool {
     let relative: std::collections::HashSet<u8> = structure::aug_triad_pitch_classes(chord.root)
         .into_iter()
         .map(|pitch| pitch.distance_from(bass.pitch_class()))

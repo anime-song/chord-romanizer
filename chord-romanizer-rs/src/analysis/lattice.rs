@@ -11,7 +11,9 @@
 
 use std::cmp::Ordering;
 
-use crate::analysis::blackadder::{BlackadderInterpretation, transition_evidence};
+use crate::analysis::blackadder::{
+    BlackadderFunction, BlackadderInterpretation, transition_evidence,
+};
 use crate::analysis::{HarmonicClassification, ScoreEvidence};
 use crate::domain::{Degree, ProgressionItem, SpelledNote};
 use crate::interpreter::HybridKind;
@@ -19,7 +21,7 @@ use crate::profile::{KeyBoundaryPolicy, NoChordPolicy};
 use crate::romanizer::{AnnotatedEvent, ResolutionType, RomanizedChord, RomanizerOptions};
 
 /// Version of candidate identities and built-in ranking rules.
-pub const BUILTIN_RULE_SET_VERSION: &str = "builtin-strict-v12-cadential-memory";
+pub const BUILTIN_RULE_SET_VERSION: &str = "builtin-strict-v13-dominant-prolongation";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// Why a candidate exists in a layer.
@@ -763,6 +765,22 @@ fn add_semantic_transition_evidence(
                     "builtin.progression.coherent_dominant_target",
                     0.9,
                     "Dominant and target candidates use the same tonal perspective",
+                );
+            }
+
+            let coherent_dominant_prolongation = from_classification.role
+                == Some(HarmonicRole::Dominant)
+                && to_classification.role == Some(HarmonicRole::Dominant)
+                && from.blackadder.as_ref().is_some_and(|reading| {
+                    reading.function == Some(BlackadderFunction::TritoneSubstitute)
+                });
+            if coherent_dominant_prolongation {
+                add_evidence(
+                    score,
+                    evidence,
+                    "builtin.progression.dominant_prolongation",
+                    0.8,
+                    "Tritone-substitute dominant moves to the dominant that shares its tonic target",
                 );
             }
 

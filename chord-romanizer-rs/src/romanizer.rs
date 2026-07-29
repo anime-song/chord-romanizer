@@ -353,7 +353,13 @@ impl Romanizer {
         // Step 2: present the next chord in the current key's spelling before
         // local hybrid interpretation. This avoids accidental spelling alone
         // changing an otherwise identical pitch-class rule.
-        let contextual_next = next.map(|next| {
+        let contextual_next_source = if self.options.behavior == BehaviorProfile::StrictV1 {
+            hint.and_then(|hint| hint.hybrid_target_chord.as_ref())
+                .or(next)
+        } else {
+            next
+        };
+        let contextual_next = contextual_next_source.map(|next| {
             let next_distance = semitone_distance(next.root, tonic);
             let next_degree = calc_degree_base(next_distance, None);
             let mut contextual = next.clone();
