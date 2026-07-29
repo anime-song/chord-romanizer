@@ -44,6 +44,15 @@ def test_display_progression_returns_ready_and_structured_labels():
     assert display[1].function_label == "subV/IV"
 
 
+def test_display_progression_spells_flat_root_and_bass_consistently():
+    item = Romanizer.strict("G").display_progression(["F#/G#"])[0]
+
+    assert item.symbol == "Gb/Ab"
+    assert item.theoretical_symbol == "Gb/Ab"
+    assert item.global_label == "bII9sus4"
+    assert item.combined_label == "Gb/Ab [bII9sus4|S]"
+
+
 def test_default_profile_preserves_python_019_surface():
     romanizer = Romanizer("C")
     results = romanizer.romanize_progression(["Dm7", "G7", "Cmaj7"])

@@ -164,6 +164,21 @@ fn normalized_symbol_is_rendered_from_the_ast() {
 }
 
 #[test]
+fn flat_root_and_slash_bass_are_spelled_as_a_pair() {
+    let progression = [item("F#/G#")];
+    let romanizer = Romanizer::new("G").unwrap();
+    let result = romanizer.annotate_progression(&progression);
+
+    assert_eq!(result[0].degree_root.to_string(), "bI");
+    assert_eq!(result[0].degree_bass.unwrap().to_string(), "bII");
+    assert_eq!(result[0].normalized_symbol, "Gb/Ab");
+    assert_eq!(result[0].theoretical_symbol, "Gb/Ab");
+
+    let display = romanizer.display_progression(&progression);
+    assert_eq!(display[0].combined_label, "Gb/Ab [bII9sus4|S]");
+}
+
+#[test]
 fn no_chord_is_aligned_and_transparent_but_boundary_is_not() {
     let romanizer = Romanizer::new("C").unwrap();
     let transparent = [item("Dm7"), item("N.C."), item("G7")];

@@ -369,7 +369,7 @@ impl Romanizer {
         // Reuse candidates created by the context pass whenever possible.
         // Generating them twice with different look-ahead was the source of a
         // Python-version inconsistency between metadata and final `alter`.
-        let hybrid_candidates = if self.options.behavior == BehaviorProfile::StrictV1 {
+        let mut hybrid_candidates = if self.options.behavior == BehaviorProfile::StrictV1 {
             hint.and_then(|hint| hint.node.as_ref())
                 .map(|node| node.hybrid_candidates.clone())
                 .unwrap_or_else(|| {
@@ -387,6 +387,27 @@ impl Romanizer {
             self.interpreter
                 .analyze_slash_candidates(chord, contextual_next.as_ref())
         };
+        let paired_flat_bass = chord.bass.and_then(|bass| {
+            (base_degree == Degree::new(-1, RomanDegree::I) && semitone_distance(bass, tonic) == 1)
+                .then(|| spell_degree_note(Degree::new(-1, RomanDegree::Ii), tonic))
+        });
+        if let Some(paired_flat_bass) = paired_flat_bass {
+            for candidate in &mut hybrid_candidates {
+                match candidate.analysis.kind {
+                    HybridKind::SusFourNine => {
+                        candidate.analysis.alter = Some(format!("{paired_flat_bass}9sus4"));
+                        candidate.analysis.bass_preference = Some(false);
+                        candidate.analysis.effective_root = Some(paired_flat_bass);
+                    }
+                    HybridKind::SusFourSevenFlatNine => {
+                        candidate.analysis.alter = Some(format!("{paired_flat_bass}7sus4(b9)"));
+                        candidate.analysis.bass_preference = Some(false);
+                        candidate.analysis.effective_root = Some(paired_flat_bass);
+                    }
+                    _ => {}
+                }
+            }
+        }
         // `analysis` is a convenience 1-best projection. The full candidate
         // list is moved into the result later and remains available to callers.
         let mut analysis = hybrid_candidates
@@ -435,6 +456,11 @@ impl Romanizer {
                     .unwrap_or(bass)
             } else if analysis.bass_preference.is_some() {
                 name_of_pitch_class(bass.pitch_class(), analysis.bass_preference)
+            } else if let Some(paired_flat_bass) = paired_flat_bass {
+                // `determine_degree_name` deliberately prefers bI over VII
+                // when the slash bass is bII. Keep the two spellings paired;
+                // otherwise F#/G# in G becomes the mixed Gb/G#.
+                paired_flat_bass
             } else {
                 self.diatonic_or_borrowed_bass(bass, tonic).unwrap_or(bass)
             };

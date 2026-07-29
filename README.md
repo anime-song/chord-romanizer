@@ -121,6 +121,9 @@ print(item.global_label)        # bVI
 理論表記を保存して画面だけ簡略化する場合は、同じ結果の
 `theoretical_symbol`と`symbol`をそれぞれ保存・表示へ割り当てます。
 
+ルートとslash bassは一組として綴りを決定します。たとえばG調の`F#/G#`は、
+rootだけを異名同音にして`Gb/G#`とはせず、`Gb/Ab [bII9sus4|S]`と表示します。
+
 ## 詳細な解析結果を使う
 
 `annotate_progression()`は、表示文字列へまとめる前の結果を返します。
