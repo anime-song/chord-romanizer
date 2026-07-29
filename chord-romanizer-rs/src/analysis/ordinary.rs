@@ -392,10 +392,20 @@ fn add_modal_interchange(
             "Major flat-seven harmony from Mixolydian/modal vocabulary",
         ))
     } else if root_distance == 6 && current.quality == QualityClass::HalfDiminished {
+        let prepares_global_dominant =
+            next.is_some_and(|event| semitone_distance(event.root, current.tonic) == 7);
         Some((
-            HarmonicRole::Predominant,
+            if prepares_global_dominant {
+                HarmonicRole::Predominant
+            } else {
+                HarmonicRole::NonFunctional
+            },
             HarmonicSource::Lydian,
-            "Raised-four half-diminished harmony compatible with Lydian",
+            if prepares_global_dominant {
+                "Raised-four half-diminished harmony prepares the global dominant"
+            } else {
+                "Raised-four half-diminished harmony is a Lydian colour without a realized predominant destination"
+            },
         ))
     } else {
         None
@@ -575,6 +585,9 @@ fn add_half_diminished_common_tone_neighbor(
     let Some(next) = next else {
         return;
     };
+    if current.quality != QualityClass::HalfDiminished {
+        return;
+    }
 
     // In C#m7b5 -> Cmaj7, the half-diminished third, fifth, and seventh
     // become the target major seventh's third, fifth, and seventh. Only the
@@ -582,27 +595,78 @@ fn add_half_diminished_common_tone_neighbor(
     // decoration when the target is a stable non-tonic degree such as IVmaj7.
     let is_major_seventh_target =
         next.quality == QualityClass::Major && next.seventh == Some(SeventhQuality::Major);
-    if current.quality != QualityClass::HalfDiminished
-        || semitone_distance(next.root, current.root) != 11
-        || !is_major_seventh_target
-    {
+    let semitone_major_seventh_neighbor =
+        semitone_distance(next.root, current.root) == 11 && is_major_seventh_target;
+    let common_tone_count = half_diminished_common_tone_count(current, next);
+    let stable_common_tone_target = is_stable_tonic(next) && common_tone_count >= 2;
+    if !semitone_major_seventh_neighbor && !stable_common_tone_target {
         return;
     }
 
     let mut classification = global_classification(current, HarmonicRole::NonFunctional);
     classification.add_source(HarmonicSource::Chromatic);
     classification.add_family(InterpretationFamily::CommonToneNeighbor);
-    classification.add_family(InterpretationFamily::ChromaticApproach);
+    if semitone_major_seventh_neighbor {
+        classification.add_family(InterpretationFamily::ChromaticApproach);
+    } else {
+        classification.add_family(InterpretationFamily::VoiceLeadingRequired);
+    }
+    let (score, explanation) = if semitone_major_seventh_neighbor {
+        (
+            1.9,
+            "Half-diminished seventh retains three common tones while its root descends by semitone into the target major seventh",
+        )
+    } else {
+        (
+            1.35,
+            "Half-diminished seventh decorates the following stable harmony through two or more common tones",
+        )
+    };
     push_unique(
         output,
         HarmonicInterpretation::new(
             "builtin.ordinary.half_diminished.common_tone_neighbor",
-            1.9,
-            "Half-diminished seventh retains three common tones while its root descends by semitone into the target major seventh",
+            score,
+            explanation,
             classification,
         ),
     );
 }
+
+fn half_diminished_common_tone_count(
+    current: HarmonyObservation,
+    target: HarmonyObservation,
+) -> usize {
+    let triad_intervals: &[i16] = match target.quality {
+        QualityClass::Major => &[0, 4, 7],
+        QualityClass::Augmented => &[0, 4, 8],
+        QualityClass::Minor => &[0, 3, 7],
+        QualityClass::Diminished | QualityClass::HalfDiminished => &[0, 3, 6],
+        QualityClass::Suspended2 => &[0, 2, 7],
+        QualityClass::Suspended4 => &[0, 5, 7],
+        QualityClass::Power => &[0, 7],
+        QualityClass::Unknown => &[0],
+    };
+    let seventh_interval = match target.seventh {
+        Some(SeventhQuality::Major) => Some(11),
+        Some(SeventhQuality::Minor) => Some(10),
+        Some(SeventhQuality::Diminished) => Some(9),
+        None => None,
+    };
+    triad_intervals
+        .iter()
+        .copied()
+        .chain(seventh_interval)
+        .filter(|interval| {
+            let pitch_class = target.root.pitch_class().offset(*interval);
+            matches!(
+                pitch_class.distance_from(current.root.pitch_class()),
+                0 | 3 | 6 | 10
+            )
+        })
+        .count()
+}
+
 fn add_chromatic_approach(
     output: &mut Vec<HarmonicInterpretation>,
     current: HarmonyObservation,
@@ -619,23 +683,40 @@ fn add_chromatic_approach(
     let same_structure = current.quality == next.quality && current.seventh == next.seventh;
     let approaches_tonic =
         next.root.pitch_class() == current.tonic.pitch_class() && is_stable_tonic(next);
-    if !same_structure && !approaches_tonic {
+    let half_diminished_voice_leading =
+        current.quality == QualityClass::HalfDiminished && root_motion == 11;
+    if !same_structure && !approaches_tonic && !half_diminished_voice_leading {
         return;
     }
 
     let mut classification = global_classification(current, HarmonicRole::NonFunctional);
     classification.add_source(HarmonicSource::Chromatic);
     classification.add_family(InterpretationFamily::ChromaticApproach);
+    if half_diminished_voice_leading {
+        classification.add_family(InterpretationFamily::VoiceLeadingRequired);
+    }
+    let (score, explanation) = if same_structure {
+        (
+            1.25,
+            "Non-diatonic chord approaches the next equal-quality chord by semitone",
+        )
+    } else if approaches_tonic {
+        (
+            0.85,
+            "Non-diatonic chord approaches the global tonic by semitone",
+        )
+    } else {
+        (
+            1.1,
+            "Half-diminished chord connects to the next harmony through chromatic semitone voice leading",
+        )
+    };
     push_unique(
         output,
         HarmonicInterpretation::new(
             "builtin.ordinary.chromatic_approach",
-            if same_structure { 1.25 } else { 0.85 },
-            if same_structure {
-                "Non-diatonic chord approaches the next equal-quality chord by semitone"
-            } else {
-                "Non-diatonic chord approaches the global tonic by semitone"
-            },
+            score,
+            explanation,
             classification,
         ),
     );

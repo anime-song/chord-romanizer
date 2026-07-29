@@ -252,6 +252,13 @@ fn function_label(
     }
 
     if classification
+        .families
+        .contains(&InterpretationFamily::VoiceLeadingRequired)
+    {
+        return Some("VL".to_owned());
+    }
+
+    if classification
         .sources
         .contains(&HarmonicSource::SubdominantMinor)
     {

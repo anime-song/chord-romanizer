@@ -85,6 +85,55 @@ fn half_diminished_tonic_neighbor_prefers_common_tone_decoration() {
         ]
     );
 }
+
+#[test]
+fn raised_four_half_diminished_requires_a_dominant_destination_for_pd() {
+    let d_romanizer = Romanizer::new("D").unwrap();
+    let common_tone_progression = [item("G#m7-5"), item("D/A")];
+    let common_tone_path = d_romanizer.analyze_top_k_interpretations(&common_tone_progression, 1);
+    let common_tone = &common_tone_path[0].selections[0].harmonic_classifications[0];
+    assert_eq!(common_tone.role, Some(HarmonicRole::NonFunctional));
+    assert!(
+        common_tone
+            .families
+            .contains(&InterpretationFamily::CommonToneNeighbor)
+    );
+    assert_eq!(
+        d_romanizer.display_progression(&common_tone_progression)[0].combined_label,
+        "G#m7-5 [#ivm7-5|CT]"
+    );
+
+    let e_romanizer = Romanizer::new("E").unwrap();
+    let chromatic_progression = [item("A#m7-5"), item("Am7")];
+    let chromatic_path = e_romanizer.analyze_top_k_interpretations(&chromatic_progression, 1);
+    let chromatic = &chromatic_path[0].selections[0].harmonic_classifications[0];
+    assert_eq!(chromatic.role, Some(HarmonicRole::NonFunctional));
+    assert!(
+        chromatic
+            .families
+            .contains(&InterpretationFamily::ChromaticApproach)
+    );
+    assert!(
+        chromatic
+            .families
+            .contains(&InterpretationFamily::VoiceLeadingRequired)
+    );
+    assert_eq!(
+        e_romanizer.display_progression(&chromatic_progression)[0].combined_label,
+        "A#m7-5 [#ivm7-5|VL]"
+    );
+
+    let d_predominant = [item("G#m7-5"), item("A7"), item("D")];
+    assert_eq!(
+        d_romanizer.display_progression(&d_predominant)[0].combined_label,
+        "G#m7-5 [#ivm7-5|PD]"
+    );
+    let e_predominant = [item("A#m7-5"), item("B7"), item("E")];
+    assert_eq!(
+        e_romanizer.display_progression(&e_predominant)[0].combined_label,
+        "A#m7-5 [#ivm7-5|PD]"
+    );
+}
 #[test]
 fn display_api_formats_the_selected_functional_path() {
     let progression = [

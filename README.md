@@ -255,6 +255,7 @@ events = romanizer.annotate_events(progression)
 | `S` | subdominant |
 | `NF` | non-functional |
 | `CT` | 共通音を保持するchromatic neighbor |
+| `VL` | chromaticな声部連結を主とする和音 |
 | `passdim` | 半音進行をつなぐpassing diminished |
 | `CS` | 同型コードを反復するconstant structure |
 | `V/ii` | iiを一時主音とするdominant |
@@ -270,6 +271,11 @@ events = romanizer.annotate_events(progression)
 この場合はpredominantではなく共通音装飾として`C#m7-5 [#im7-5|CT]`と表示します。
 この判定はtargetがglobal tonicでなくても成立し、G majorの
 `C#:m7-5/G → C#:m7-5 → C:M7`では最初の2和音を`|CT`と表示します。
+
+major keyの`#ivm7-5`は、配置だけを根拠に`PD`とはしません。直後がglobal Vなら
+`G#m7-5 → A7 → D`のように`#ivm7-5|PD`を維持します。一方、D majorの
+`G#m7-5 → D/A`はDとF#を保持するため`#ivm7-5|CT`、E majorの
+`A#m7-5 → Am7`は半音進行による声部連結として`#ivm7-5|VL`と表示します。
 
 `Bm7 → Bb:dim7 → Am7`ではroot lineのB–Bb–Aを半音下行でつなぐため、
 `Bb:dim7 [biiidim7|passdim]`と表示します。
