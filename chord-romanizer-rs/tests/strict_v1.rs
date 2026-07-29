@@ -21,6 +21,43 @@ fn item(symbol: &str) -> ProgressionItem {
 }
 
 #[test]
+fn half_diminished_tonic_neighbor_prefers_common_tone_decoration() {
+    let romanizer = Romanizer::new("C").unwrap();
+    let progression = [item("C#m7-5"), item("CM7")];
+    let result = romanizer.annotate_progression(&progression);
+
+    assert_eq!(result[0].normalized_symbol, "C#m7-5");
+    let common_tone = result[0]
+        .harmonic_interpretations
+        .iter()
+        .find(|interpretation| {
+            interpretation
+                .classification
+                .families
+                .contains(&InterpretationFamily::CommonToneNeighbor)
+        })
+        .unwrap();
+    assert_eq!(
+        common_tone.classification.role,
+        Some(HarmonicRole::NonFunctional)
+    );
+    assert!(
+        common_tone
+            .classification
+            .families
+            .contains(&InterpretationFamily::ChromaticApproach)
+    );
+
+    let best = romanizer.analyze_top_k_interpretations(&progression, 1);
+    assert!(
+        best[0].selections[0].harmonic_classifications[0]
+            .families
+            .contains(&InterpretationFamily::CommonToneNeighbor)
+    );
+    let display = romanizer.display_progression(&progression);
+    assert_eq!(display[0].combined_label, "C#m7-5 [#im7-5|CT]");
+}
+#[test]
 fn display_api_formats_the_selected_functional_path() {
     let progression = [
         item("Bm7"),

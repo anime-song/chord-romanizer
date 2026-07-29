@@ -353,6 +353,23 @@ def test_tonal_state_and_quality_families_cross_native_boundary():
     )
 
 
+def test_half_diminished_tonic_neighbor_is_common_tone_decoration():
+    romanizer = Romanizer.strict("C")
+    annotated = romanizer.annotate_progression(["C#m7-5", "CM7"])
+    common_tone = next(
+        classification
+        for classification in annotated[0].harmonic_classifications
+        if "common_tone_neighbor" in classification.families
+    )
+
+    assert annotated[0].normalized_symbol == "C#m7-5"
+    assert common_tone.role == "non_functional"
+    assert common_tone.sources == ["chromatic"]
+    assert "chromatic_approach" in common_tone.families
+    assert romanizer.display_progression(["C#m7-5", "CM7"])[0].combined_label == (
+        "C#m7-5 [#im7-5|CT]"
+    )
+
 def test_joint_key_and_function_inference_crosses_native_boundary():
     paths = Romanizer.strict().analyze_keys_and_functions(
         ["Em7", "A7", "Dm7", "G7", "Cmaj7"], k=5

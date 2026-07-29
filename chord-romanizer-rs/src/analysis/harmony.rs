@@ -83,6 +83,9 @@ pub enum InterpretationFamily {
     Neapolitan,
     ChromaticMediant,
     ChromaticApproach,
+    /// A chromatic neighbor chord that retains most tones of its target.
+    /// For example, C#m7b5 -> Cmaj7 keeps E, G, and B while C# moves to C.
+    CommonToneNeighbor,
     /// A diminished seventh created by chromatic motion between surrounding
     /// harmonies.  Chord symbols alone can propose this reading; MIDI/voicing
     /// evidence will eventually decide whether the required lines exist.

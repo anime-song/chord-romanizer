@@ -13,7 +13,10 @@ use crate::analysis::{
     InterpretationTreeOptions, KeyAnalysisOptions, KeyedAnalysisPath, ScoreEvidence, TonalMode,
     TonalPerspective, TonalScope,
 };
-use crate::domain::{Degree, ParsedChord, ParsedSymbol, ProgressionItem, RomanDegree, SpelledNote};
+use crate::domain::{
+    Degree, ParsedChord, ParsedSymbol, ProgressionItem, QualityClass, RomanDegree, SeventhQuality,
+    SpelledNote,
+};
 use crate::error::ParseError;
 use crate::interpreter::{ChordInterpreter, HybridCandidate, HybridKind, SlashClassification};
 use crate::notation::formatter::{
@@ -710,6 +713,18 @@ impl Romanizer {
         }
 
         if distance == 1 && next.is_some_and(|next| semitone_distance(next.root, tonic) == 0) {
+            let preserves_common_tone_spelling = chord.quality_parsed.class
+                == QualityClass::HalfDiminished
+                && next.is_some_and(|next| {
+                    next.quality_parsed.class == QualityClass::Major
+                        && next.quality_parsed.seventh == Some(SeventhQuality::Major)
+                });
+            if preserves_common_tone_spelling {
+                return (
+                    Degree::new(1, RomanDegree::I),
+                    vec![Degree::new(-1, RomanDegree::Ii)],
+                );
+            }
             return (Degree::new(-1, RomanDegree::Ii), Vec::new());
         }
 

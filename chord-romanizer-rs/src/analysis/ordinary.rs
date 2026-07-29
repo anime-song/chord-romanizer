@@ -57,6 +57,7 @@ pub(crate) fn infer_ordinary_interpretations(
         add_flat_seven_subdominant_minor(&mut output[index], current, previous, next);
         add_neapolitan(&mut output[index], current, next);
         add_chromatic_mediant(&mut output[index], current, previous, next);
+        add_half_diminished_common_tone_neighbor(&mut output[index], current, next);
         add_chromatic_approach(&mut output[index], current, next);
     }
 
@@ -540,6 +541,44 @@ fn add_chromatic_mediant(
     );
 }
 
+fn add_half_diminished_common_tone_neighbor(
+    output: &mut Vec<HarmonicInterpretation>,
+    current: HarmonyObservation,
+    next: Option<HarmonyObservation>,
+) {
+    let Some(next) = next else {
+        return;
+    };
+
+    // In C#m7b5 -> Cmaj7, the half-diminished third, fifth, and seventh
+    // become the target major seventh's third, fifth, and seventh. Only the
+    // written root moves down by semitone, so this is stronger evidence for a
+    // common-tone decoration than for a predominant function.
+    let is_tonic_major_seventh = next.root.pitch_class() == current.tonic.pitch_class()
+        && next.quality == QualityClass::Major
+        && next.seventh == Some(SeventhQuality::Major)
+        && is_stable_tonic(next);
+    if current.quality != QualityClass::HalfDiminished
+        || semitone_distance(next.root, current.root) != 11
+        || !is_tonic_major_seventh
+    {
+        return;
+    }
+
+    let mut classification = global_classification(current, HarmonicRole::NonFunctional);
+    classification.add_source(HarmonicSource::Chromatic);
+    classification.add_family(InterpretationFamily::CommonToneNeighbor);
+    classification.add_family(InterpretationFamily::ChromaticApproach);
+    push_unique(
+        output,
+        HarmonicInterpretation::new(
+            "builtin.ordinary.half_diminished.common_tone_neighbor",
+            1.9,
+            "Half-diminished seventh retains three common tones while its root descends by semitone into tonic major seventh",
+            classification,
+        ),
+    );
+}
 fn add_chromatic_approach(
     output: &mut Vec<HarmonicInterpretation>,
     current: HarmonyObservation,

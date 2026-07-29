@@ -6,7 +6,7 @@
 
 use crate::analysis::{
     AnalysisLattice, BlackadderFunction, HarmonicClassification, HarmonicRole, HarmonicSource,
-    PathSelection, TonalMode, TonalPerspective, TonalScope,
+    InterpretationFamily, PathSelection, TonalMode, TonalPerspective, TonalScope,
 };
 use crate::domain::{Degree, ParsedChord, ProgressionItem, QualityClass};
 use crate::interpreter::SlashClassification;
@@ -224,6 +224,13 @@ fn function_label(
     let classification = classification?;
     let perspective = classification.perspective.as_ref();
     let target = perspective.map(target_degree);
+
+    if classification
+        .families
+        .contains(&InterpretationFamily::CommonToneNeighbor)
+    {
+        return Some("CT".to_owned());
+    }
 
     if classification
         .sources

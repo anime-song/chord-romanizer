@@ -254,6 +254,7 @@ events = romanizer.annotate_events(progression)
 | `D` | dominant |
 | `S` | subdominant |
 | `NF` | non-functional |
+| `CT` | 共通音を保持するchromatic neighbor |
 | `V/ii` | iiを一時主音とするdominant |
 | `subV/IV` | IVへ向かうtritone substitute |
 | `I/IV`, `i/vi` | 一時的な調でのtonic |
@@ -261,6 +262,9 @@ events = romanizer.annotate_events(progression)
 
 `Bm7 [ii7/IV|PD]`のように`|`がある場合、左側が具体的な度数、
 右側が機能または役割です。
+
+`C#m7-5 → CM7`ではE、G、Bの3音を保持し、C#だけがCへ半音下行します。
+この場合はpredominantではなく共通音装飾として`C#m7-5 [#im7-5|CT]`と表示します。
 
 ## StrictV1と旧バージョン互換
 
