@@ -722,9 +722,14 @@ impl Romanizer {
                 target_is_sharp = false;
             }
 
+            // A major seventh chord on the tritone is the flat-side bV (BbM7 in E).
+            // Read from the parsed quality: lowercasing the symbol made "M7"
+            // and "m7" the same, which spelled the sharp-side minor seventh
+            // (A#m7 in E, the vi of VI or the ii of iii) as Bbm7.
             if !is_half_diminished
                 && !is_diminished
-                && (lower.contains("m7") || lower.contains("maj7"))
+                && chord.quality_parsed.class == QualityClass::Major
+                && chord.quality_parsed.seventh == Some(SeventhQuality::Major)
             {
                 target_is_sharp = false;
             }

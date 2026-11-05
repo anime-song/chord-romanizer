@@ -1704,3 +1704,34 @@ fn retained_augmented_upper_structure_gates_bass_only_function() {
             })
     }));
 }
+
+#[test]
+fn minor_seventh_on_the_tritone_keeps_the_sharp_side_spelling() {
+    // "M7" and "m7" once looked alike (the symbol was lowercased), so every
+    // minor seventh on the tritone was written flat: Bbm7 for the vi of VI.
+    let romanizer = Romanizer::new("E").unwrap();
+    let progression = [
+        item("EM7"),
+        item("G#7"),
+        item("A#m7"),
+        item("G#/B#"),
+        item("AM7"),
+    ];
+    let result = romanizer.annotate_progression(&progression);
+    assert_eq!(result[2].theoretical_symbol, "A#m7");
+    assert_eq!(result[2].roman, "#IVm7");
+
+    // the ii of iii in a two-five
+    let progression = [item("A#m7"), item("D#7"), item("G#m7")];
+    let result = romanizer.annotate_progression(&progression);
+    assert_eq!(result[0].theoretical_symbol, "A#m7");
+}
+
+#[test]
+fn major_seventh_on_the_tritone_stays_flat() {
+    let romanizer = Romanizer::new("E").unwrap();
+    let progression = [item("EM7"), item("BbM7"), item("AM7")];
+    let result = romanizer.annotate_progression(&progression);
+    assert_eq!(result[1].theoretical_symbol, "BbM7");
+    assert_eq!(result[1].roman, "bVM7");
+}
