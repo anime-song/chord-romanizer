@@ -18,14 +18,16 @@ use crate::domain::{
     SpelledNote,
 };
 use crate::error::ParseError;
-use crate::interpreter::{ChordInterpreter, HybridCandidate, HybridKind, SlashClassification};
+use crate::interpreter::{
+    ChordInterpreter, HybridAnalysis, HybridCandidate, HybridKind, SlashClassification,
+};
 use crate::notation::formatter::{
     format_roman, render_symbol, rewrite_symbol, split_note_and_suffix,
 };
 use crate::profile::{BehaviorProfile, KeyBoundaryPolicy, NoChordPolicy};
 use crate::speller::{
     MAJOR_SCALE_STEPS, calc_degree_base, degree_from_spelling, name_of_pitch_class,
-    semitone_distance, simplify_spelling, spell_degree_note,
+    semitone_distance, simplify_spelling, spell_chord_tone, spell_degree_note,
 };
 use crate::structure;
 
@@ -468,6 +470,7 @@ impl Romanizer {
         // from the chord formula; hybrid basses follow functional/key context.
         let mut root_fixed = analysis
             .root_override
+            .or_else(|| self.sus_upper_root(chord, &analysis))
             .unwrap_or_else(|| spell_degree_note(base_degree, tonic));
         let mut degree_bass = None;
         let mut roman_root_bass = None;
@@ -695,6 +698,31 @@ impl Romanizer {
     }
 
     #[allow(clippy::too_many_arguments)]
+    /// The written root of a triad over a bass read as a sus chord on the bass
+    /// (G/A as A9sus4): a tone of that chord, spelled from its functional bass.
+    /// The key-degree spelling would take the sharp/flat preference of the sus
+    /// chord's own resolution (A to D, a sharp key) and write G as #VI, F##.
+    fn sus_upper_root(
+        &self,
+        chord: &ParsedChord,
+        analysis: &HybridAnalysis,
+    ) -> Option<SpelledNote> {
+        if self.options.behavior != BehaviorProfile::StrictV1
+            || !matches!(
+                analysis.kind,
+                HybridKind::SusFourNine | HybridKind::SusFourSevenFlatNine
+            )
+        {
+            return None;
+        }
+        let functional_bass = analysis.effective_root?;
+        let bass = chord.bass?;
+        Some(spell_chord_tone(
+            functional_bass,
+            semitone_distance(chord.root, bass),
+        ))
+    }
+
     fn determine_degree_name(
         &self,
         distance: u8,

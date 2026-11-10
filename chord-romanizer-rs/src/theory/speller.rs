@@ -58,6 +58,19 @@ pub fn spell_pitch_class(base_letter: NoteLetter, target: PitchClass) -> Spelled
     SpelledNote::new(base_letter, diff as i8)
 }
 
+/// The note `semitones` above `root`, written as a tone of a dominant-type
+/// chord on it: the b9, 9 and #9 on the next letter, the 3rd on the third, the
+/// 11 and #11 on the fourth, the 5th on the fifth, the b13 and 13 on the sixth,
+/// the b7 and 7 on the seventh.  G over A (A9sus4) is the b7 G, never F##.
+pub fn spell_chord_tone(root: SpelledNote, semitones: u8) -> SpelledNote {
+    const LETTER_STEPS: [usize; 12] = [0, 1, 1, 1, 2, 3, 3, 4, 5, 5, 6, 6];
+    let semitones = semitones % 12;
+    spell_pitch_class(
+        root.letter.shift(LETTER_STEPS[usize::from(semitones)]),
+        root.pitch_class().offset(i16::from(semitones)),
+    )
+}
+
 pub fn calc_degree_base(distance: u8, prefer_sharps: Option<bool>) -> Degree {
     // Compare every major-scale degree by the smallest signed chromatic
     // displacement. Ties are notation choices, resolved by the requested

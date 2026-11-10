@@ -1735,3 +1735,28 @@ fn major_seventh_on_the_tritone_stays_flat() {
     assert_eq!(result[1].theoretical_symbol, "BbM7");
     assert_eq!(result[1].roman, "bVM7");
 }
+
+#[test]
+fn triad_over_its_ninth_bass_is_spelled_from_the_sus_chord() {
+    // G/A in A is A9sus4 (V/IV): its G is the minor seventh above A. The sus
+    // chord resolving to D, a sharp key, must not make it #VI (F##).
+    for (key, progression, upper) in [
+        ("A", ["A", "G/A", "D", "A"], "G/A"),
+        ("D", ["D", "C/D", "G", "D"], "C/D"),
+        ("E", ["E", "D/E", "A", "E"], "D/E"),
+        ("C", ["C", "Bb/C", "F", "C"], "Bb/C"),
+        ("Eb", ["Eb", "Db/Eb", "Ab", "Eb"], "Db/Eb"),
+    ] {
+        let romanizer = Romanizer::new(key).unwrap();
+        let items: Vec<_> = progression.iter().map(|symbol| item(symbol)).collect();
+        let result = romanizer.annotate_progression(&items);
+        assert_eq!(result[1].theoretical_symbol, upper, "in {key}");
+        assert_eq!(result[1].alter.as_deref(), Some("I9sus4"), "in {key}");
+        let display = romanizer.display_progression(&items);
+        assert_eq!(display[1].symbol, upper, "in {key}");
+    }
+    // the minor seventh over the sus chord's root, wherever the bass stands
+    let romanizer = Romanizer::new("E").unwrap();
+    let result = romanizer.annotate_progression(&[item("E"), item("Bb/C"), item("F")]);
+    assert_eq!(result[1].theoretical_symbol, "Bb/C");
+}
