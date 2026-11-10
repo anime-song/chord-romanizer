@@ -19,9 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # ubuntu-latest (26.04) has no Python 3.8 for setup-python any more; the
+      # abi3 wheel is tested on the same Python as the Windows and macOS ones
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.11"
       - name: Build abi3 wheel and source distribution
         uses: PyO3/maturin-action@v1
         with:
